@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Test and coverage output
+coverage/
+playwright-report/
+test-results/
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Local OS/editor files
+.DS_Store
+.superpowers/
+.idea/
+.vscode/
