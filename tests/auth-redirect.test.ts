@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { getEmailRedirectTo } from "@/data/auth-redirect";
 
 describe("getEmailRedirectTo", () => {
-  it("uses the configured Supabase Site URL for GitHub Pages", () => {
-    expect(getEmailRedirectTo(new URL("https://jinlongchen.github.io/personal-workbench/"))).toBeUndefined();
+  it("uses the fixed GitHub Pages URL for GitHub Pages", () => {
+    expect(getEmailRedirectTo(new URL("https://jinlongchen.github.io/personal-workbench/"))).toBe("https://jinlongchen.github.io/personal-workbench/");
   });
 
-  it("uses the configured Supabase Site URL for a custom production domain", () => {
-    expect(getEmailRedirectTo(new URL("https://jinlongchen.com/personal-workbench/"))).toBeUndefined();
+  it("uses the fixed GitHub Pages URL for a custom production domain", () => {
+    expect(getEmailRedirectTo(new URL("https://jinlongchen.com/personal-workbench/"))).toBe("https://jinlongchen.github.io/personal-workbench/");
   });
 
   it("returns to the current local development page", () => {
