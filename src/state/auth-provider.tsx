@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
 import { getSupabaseClient, isSupabaseConfigured } from "@/data/supabase-client";
+import { getEmailRedirectTo } from "@/data/auth-redirect";
 
 export type AuthStatus = "loading" | "signed_out" | "signed_in";
 
@@ -62,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       const normalizedEmail = email.trim();
       if (!normalizedEmail) throw new Error("请输入邮箱地址。");
-      const redirectTo = typeof window === "undefined" ? undefined : `${window.location.origin}${window.location.pathname}`;
+      const redirectTo = typeof window === "undefined" ? undefined : getEmailRedirectTo(new URL(window.location.href));
       const { error: signInError } = await getSupabaseClient().auth.signInWithOtp({
         email: normalizedEmail,
         options: { emailRedirectTo: redirectTo },
