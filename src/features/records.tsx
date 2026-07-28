@@ -138,7 +138,7 @@ function RecordCard({ kind, entry }: { kind: RecordKind; entry: WorkEntry | Lear
 }
 
 export function RecordsView() {
-  const { workspace, saveStatus } = useWorkspace();
+  const { workspace, saveStatus, syncMode } = useWorkspace();
   const date = todayKey(workspace.profile.timezone);
   const [kind, setKind] = useState<RecordKind>("work");
   const [creating, setCreating] = useState(false);
@@ -155,7 +155,7 @@ export function RecordsView() {
       <PageHeader eyebrow="工作与学习" title="记录" description="把做过的事和新获得的认识留下来。" action={<button className="button primary" type="button" onClick={() => setCreating(true)}><Plus size={17} />新建记录</button>} />
       <div className="record-controls">
         <div className="segmented" aria-label="记录类型"><button type="button" className={kind === "work" ? "active" : ""} aria-pressed={kind === "work"} onClick={() => { setKind("work"); setKeyword(""); }}>工作记录</button><button type="button" className={kind === "learning" ? "active" : ""} aria-pressed={kind === "learning"} onClick={() => { setKind("learning"); setKeyword(""); }}>学习记录</button></div>
-        <SaveIndicator status={saveStatus} />
+        <SaveIndicator status={saveStatus} mode={syncMode} />
       </div>
       <div className="filter-row">
         <label className="search-field"><Search size={16} aria-hidden="true" /><span className="sr-only">搜索记录</span><input aria-label="搜索记录" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索标题、内容或标签" /></label>

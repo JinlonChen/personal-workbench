@@ -49,7 +49,7 @@ function ViewPlaceholder({ view, onNavigate }: { view: View; onNavigate: (view: 
 }
 
 export function AppShell() {
-  const { workspace, saveStatus } = useWorkspace();
+  const { workspace, saveStatus, syncMode } = useWorkspace();
   const [view, setView] = useState<View>("today");
   const date = todayKey(workspace.profile.timezone);
 
@@ -60,7 +60,7 @@ export function AppShell() {
           <span className="eyebrow">一页</span>
           <strong>{formatDate(date)}</strong>
         </div>
-        <span className={`save-indicator save-${saveStatus}`}>{saveStatus === "saving" ? "保存中" : "本地模式"}</span>
+        <span className={`save-indicator save-${saveStatus}`}>{saveStatus === "saving" ? "保存中" : syncMode === "cloud" ? "云端同步" : "本地模式"}</span>
       </header>
 
       <nav className="primary-nav" aria-label="主要导航">
@@ -83,7 +83,7 @@ export function AppShell() {
             </button>
           ))}
         </div>
-        <div className="local-note"><span className="status-dot" />数据仅保存在此浏览器</div>
+        <div className="local-note"><span className="status-dot" />{syncMode === "cloud" ? "已同步到云端" : "数据仅保存在此浏览器"}</div>
       </nav>
 
       <main className="app-content">

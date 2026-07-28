@@ -100,7 +100,7 @@ export function TaskList({ tasks }: { tasks: WorkspaceTask[] }) {
 }
 
 export function TasksView() {
-  const { workspace, saveStatus } = useWorkspace();
+  const { workspace, saveStatus, syncMode } = useWorkspace();
   const currentDate = todayKey(workspace.profile.timezone);
   const [date, setDate] = useState(currentDate);
   const [status, setStatus] = useState<TaskStatus | "all">("all");
@@ -114,7 +114,7 @@ export function TasksView() {
         <label className="compact-field"><span>日期</span><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
         <label className="compact-field"><span>状态</span><select value={status} onChange={(event) => setStatus(event.target.value as TaskStatus | "all")}><option value="all">全部</option><option value="todo">未开始</option><option value="doing">进行中</option><option value="done">已完成</option><option value="cancelled">已取消</option></select></label>
         <div className="toolbar-spacer" />
-        <SaveIndicator status={saveStatus} />
+        <SaveIndicator status={saveStatus} mode={syncMode} />
       </div>
       <div className="section-heading"><div><h2>{date === currentDate ? "今天" : formatDate(date)}</h2><p>{visibleTasks.length} 项任务</p></div></div>
       <TaskList tasks={visibleTasks} />

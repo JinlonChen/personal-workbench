@@ -1,18 +1,25 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 
+import { SupabaseWorkspaceRepository } from "@/data/supabase-repository";
+import { getSupabaseClient } from "@/data/supabase-client";
 import { LocalWorkspaceRepository } from "@/data/local-repository";
 import { createSeedWorkspace } from "@/data/seed";
 import { nextDate } from "@/domain/date";
 import { createId } from "@/domain/id";
 import type { DailyReview, DailyReviewInput, LearningEntry, LearningEntryInput, Profile, SaveStatus, TaskInput, WorkEntry, WorkEntryInput, Workspace, WorkspaceTask } from "@/domain/types";
+import { useAuth } from "./auth-provider";
 
 interface WorkspaceContextValue {
   workspace: Workspace;
   saveStatus: SaveStatus;
   error: string | null;
+  syncMode: "local" | "cloud";
+  migrationPending: boolean;
   replaceWorkspace: (next: Workspace) => Promise<void>;
+  migrateLocalData: () => Promise<void>;
+  startFreshCloudWorkspace: () => Promise<void>;
   createTask: (input: TaskInput) => Promise<void>;
   updateTask: (id: string, patch: Partial<TaskInput>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
@@ -30,35 +37,138 @@ interface WorkspaceContextValue {
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
+function hasLocalData(workspace: Workspace) {
+  return workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0;
+}
+
+function MigrationDialog({ onUpload, onStartFresh }: { onUpload: () => void; onStartFresh: () => void }) {
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="confirm-panel migration-panel" role="dialog" aria-modal="true" aria-labelledby="migration-title">
+        <div>
+          <h2 id="migration-title">发现本地数据</h2>
+          <p>云端账号还是空的。要把这台设备上的任务、记录和复盘上传到云端吗？上传后，其他设备登录同一邮箱即可看到这些内容。</p>
+        </div>
+        <div className="dialog-actions">
+          <button className="button secondary" type="button" onClick={onStartFresh}>从云端重新开始</button>
+          <button className="button primary" type="button" onClick={onUpload}>上传本地数据</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const { configured, session, status: authStatus } = useAuth();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const workspaceRef = useRef<Workspace | null>(null);
+  const [localReady, setLocalReady] = useState(false);
+  const [repository, setRepository] = useState<LocalWorkspaceRepository | SupabaseWorkspaceRepository | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const repository = useMemo(
+  const [syncMode, setSyncMode] = useState<"local" | "cloud">("local");
+  const [migrationPending, setMigrationPending] = useState(false);
+  const localRepository = useMemo(
     () => (typeof window === "undefined" ? null : new LocalWorkspaceRepository(window.localStorage)),
     [],
   );
 
   useEffect(() => {
-    if (!repository) return;
-    repository
+    if (!localRepository) return;
+    localRepository
       .load()
-      .then(setWorkspace)
+      .then((loaded) => {
+        workspaceRef.current = loaded;
+        setWorkspace(loaded);
+        setRepository(localRepository);
+        setLocalReady(true);
+      })
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "本地数据加载失败。"));
-  }, [repository]);
+  }, [localRepository]);
+
+  useEffect(() => {
+    if (!localReady || !localRepository || !configured) return;
+    if (authStatus !== "signed_in" || !session) {
+      setSyncMode("local");
+      setMigrationPending(false);
+      localRepository.load().then((loaded) => {
+        workspaceRef.current = loaded;
+        setWorkspace(loaded);
+        setRepository(localRepository);
+      }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "本地数据加载失败。"));
+      return;
+    }
+
+    const cloudRepository = new SupabaseWorkspaceRepository(getSupabaseClient(), session.user.id);
+    setSaveStatus("saving");
+    cloudRepository.load().then(async (remoteWorkspace) => {
+      setRepository(cloudRepository);
+      setSyncMode("cloud");
+      const localWorkspace = workspaceRef.current;
+      const remoteIsEmpty = !hasLocalData(remoteWorkspace);
+      if (remoteIsEmpty && localWorkspace && hasLocalData(localWorkspace)) {
+        setMigrationPending(true);
+        setSaveStatus("idle");
+        return;
+      }
+      workspaceRef.current = remoteWorkspace;
+      setWorkspace(remoteWorkspace);
+      await localRepository.save(remoteWorkspace);
+      setSaveStatus("saved");
+      setError(null);
+    }).catch((reason: unknown) => {
+      setSaveStatus("error");
+      setError(reason instanceof Error ? reason.message : "云端数据加载失败，请检查网络后重试。");
+    });
+  }, [authStatus, configured, localReady, localRepository, session]);
 
   async function replaceWorkspace(next: Workspace) {
-    if (!repository) return;
+    if (!repository || !localRepository) return;
     setSaveStatus("saving");
     setError(null);
+    workspaceRef.current = next;
+    setWorkspace(next);
     try {
-      await repository.save(next);
-      setWorkspace(next);
+      await localRepository.save(next);
+      if (syncMode === "cloud") await repository.save(next);
       setSaveStatus("saved");
     } catch (reason) {
       setSaveStatus("error");
-      setError(reason instanceof Error ? reason.message : "保存失败，请重试。");
+      setError(reason instanceof Error ? reason.message : "保存失败，请检查网络后重试。");
       throw reason;
+    }
+  }
+
+  async function migrateLocalData() {
+    if (!repository || !workspaceRef.current) return;
+    setSaveStatus("saving");
+    setError(null);
+    try {
+      await repository.save(workspaceRef.current);
+      setMigrationPending(false);
+      setSaveStatus("saved");
+    } catch (reason) {
+      setSaveStatus("error");
+      setError(reason instanceof Error ? reason.message : "上传失败，请检查网络后重试。");
+    }
+  }
+
+  async function startFreshCloudWorkspace() {
+    if (!repository || !localRepository) return;
+    const next = createSeedWorkspace();
+    setSaveStatus("saving");
+    setError(null);
+    try {
+      await repository.clear();
+      await repository.save(next);
+      await localRepository.save(next);
+      workspaceRef.current = next;
+      setWorkspace(next);
+      setMigrationPending(false);
+      setSaveStatus("saved");
+    } catch (reason) {
+      setSaveStatus("error");
+      setError(reason instanceof Error ? reason.message : "初始化云端工作区失败，请重试。");
     }
   }
 
@@ -77,7 +187,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   async function deleteTask(id: string) {
     if (!workspace) return;
-    await replaceWorkspace({ ...workspace, tasks: workspace.tasks.filter((task) => task.id !== id) });
+    const updatedAt = new Date().toISOString();
+    await replaceWorkspace({
+      ...workspace,
+      tasks: workspace.tasks.filter((task) => task.id !== id),
+      workEntries: workspace.workEntries.map((entry) => entry.taskId === id ? { ...entry, taskId: null, updatedAt } : entry),
+    });
   }
 
   async function rollTaskToTomorrow(id: string) {
@@ -137,28 +252,32 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   async function resetWorkspace() {
-    if (!repository) return;
+    if (!repository || !localRepository) return;
     setSaveStatus("saving");
-    await repository.clear();
-    const next = createSeedWorkspace();
-    await repository.save(next);
-    setWorkspace(next);
-    setSaveStatus("saved");
     setError(null);
+    try {
+      if (syncMode === "cloud") await repository.clear();
+      else await localRepository.clear();
+      const next = createSeedWorkspace();
+      await replaceWorkspace(next);
+    } catch (reason) {
+      setSaveStatus("error");
+      setError(reason instanceof Error ? reason.message : "重置失败，请重试。");
+    }
   }
 
   if (error && !workspace) {
     return (
       <main className="loading-screen">
         <div className="loading-panel" role="alert">
-          <strong>无法打开本地工作台</strong>
+          <strong>无法打开工作台</strong>
           <p>{error}</p>
         </div>
       </main>
     );
   }
 
-  if (!workspace) {
+  if (!workspace || !repository) {
     return (
       <main className="loading-screen" aria-label="正在加载">
         <span className="spinner" aria-hidden="true" />
@@ -168,8 +287,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, replaceWorkspace, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, updateProfile, resetWorkspace }}>
+    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, updateProfile, resetWorkspace }}>
       {children}
+      {migrationPending ? <MigrationDialog onUpload={() => void migrateLocalData()} onStartFresh={() => void startFreshCloudWorkspace()} /> : null}
     </WorkspaceContext.Provider>
   );
 }

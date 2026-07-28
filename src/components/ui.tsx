@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, CloudOff, LoaderCircle, X } from "lucide-react";
+import { AlertTriangle, Check, Cloud, CloudOff, LoaderCircle, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { SaveStatus } from "@/domain/types";
@@ -28,9 +28,9 @@ export function PageHeader({
   );
 }
 
-export function SaveIndicator({ status }: { status: SaveStatus }) {
+export function SaveIndicator({ status, mode = "local" }: { status: SaveStatus; mode?: "local" | "cloud" }) {
   const content = {
-    idle: { icon: CloudOff, label: "本地模式" },
+    idle: { icon: mode === "cloud" ? Cloud : CloudOff, label: mode === "cloud" ? "云端同步" : "本地模式" },
     saving: { icon: LoaderCircle, label: "保存中" },
     saved: { icon: Check, label: "已保存" },
     error: { icon: AlertTriangle, label: "保存失败" },

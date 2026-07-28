@@ -58,6 +58,43 @@ button {
   background: var(--surface);
 }
 
+.auth-screen {
+  min-height: 100vh;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  background: var(--background);
+}
+
+.auth-panel {
+  width: min(100%, 430px);
+  padding: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 18px 50px rgba(20, 27, 22, 0.08);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 54px;
+}
+
+.auth-brand > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.auth-brand > div span { color: var(--muted); font-size: 12px; }
+.auth-copy h1 { margin: 6px 0 10px; font-size: 28px; line-height: 1.25; }
+.auth-copy p { margin: 0; color: var(--muted); line-height: 1.6; }
+.auth-form { margin-top: 28px; }
+.auth-submit { width: 100%; margin-top: 6px; }
+.auth-footnote { margin: 28px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
 .spinner {
   width: 22px;
   height: 22px;
@@ -529,6 +566,8 @@ button {
 .confirm-panel p { margin: 7px 0 0; color: var(--muted); line-height: 1.55; }
 .danger-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: #fae7e4; color: var(--danger); }
 .dialog-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.migration-panel { max-width: 520px; }
+.migration-panel h2 { margin: 0; font-size: 19px; }
 
 .sr-only {
   position: absolute;

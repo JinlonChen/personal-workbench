@@ -24,7 +24,7 @@ const emptyReview = (date: string): DailyReviewInput => ({
 });
 
 export function ReviewsView() {
-  const { workspace, saveStatus, error, upsertReview } = useWorkspace();
+  const { workspace, saveStatus, syncMode, error, upsertReview } = useWorkspace();
   const today = todayKey(workspace.profile.timezone);
   const [date, setDate] = useState(today);
   const current = workspace.dailyReviews.find((review) => review.reviewDate === date);
@@ -58,7 +58,7 @@ export function ReviewsView() {
 
   return (
     <section className="view-page">
-      <PageHeader eyebrow="停下来看看今天" title="每日复盘" description="两分钟足够，把真正重要的部分留下。" action={<SaveIndicator status={saveStatus} />} />
+      <PageHeader eyebrow="停下来看看今天" title="每日复盘" description="两分钟足够，把真正重要的部分留下。" action={<SaveIndicator status={saveStatus} mode={syncMode} />} />
       <div className="review-stats">
         <div><CalendarCheck2 size={18} /><span><strong>{workspace.dailyReviews.length}</strong><small>累计复盘</small></span></div>
         <div><Flame size={18} /><span><strong>{streak}</strong><small>连续天数</small></span></div>

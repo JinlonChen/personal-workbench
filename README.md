@@ -8,10 +8,10 @@
 - 任务新增、编辑、完成、取消、删除和顺延
 - 记录按日期、关键词和标签筛选
 - JSON / Markdown 数据导出
-- 浏览器 `localStorage` 持久化，无需云端账号即可运行
+- 浏览器 `localStorage` 持久化；配置 Supabase 后支持邮箱登录和跨设备同步
 - Supabase PostgreSQL schema、索引、触发器和 RLS 策略
 
-当前版本的数据只保存在当前浏览器中。部署到 Vercel 不会自动实现跨设备同步；跨设备同步需要后续接入 Supabase Repository 和认证流程。
+未配置 Supabase 时，数据只保存在当前浏览器中。配置后，登录同一邮箱的设备会使用 Supabase 云端数据。
 
 ## 本地运行
 
@@ -46,13 +46,16 @@ npm run test:e2e
 
 ## GitHub 与 GitHub Pages 部署
 
-1. 将本项目推送到 GitHub 私有仓库。
+1. 将本项目推送到 GitHub 仓库。
 2. 确认 `.github/workflows/deploy-pages.yml` 已上传。
 3. 在 GitHub 仓库的 `Settings` → `Pages` 中将发布来源设置为 `GitHub Actions`。
-4. 推送到 `main` 后，Actions 会构建 `out/` 并发布到 `https://<用户名>.github.io/<仓库名>/`。
+4. 在 `Settings` → `Secrets and variables` → `Actions` → `New repository secret` 中新增：
+   - `NEXT_PUBLIC_SUPABASE_URL`：Supabase 的 Project URL；
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`：Supabase 的 anon/public 或 Publishable key。
+5. 推送到 `main` 后，Actions 会构建 `out/` 并发布到 `https://<用户名>.github.io/<仓库名>/`。
 
 不要提交 `.env.local`、服务密钥、`node_modules/` 或 `.next/`。环境变量模板见 `.env.example`。
 
 ## Supabase
 
-生产 schema 位于 [`supabase/schema.sql`](./supabase/schema.sql)。当前页面仍使用本地仓库；接入 Supabase 时应增加远端 Repository、认证保护层和用户数据迁移流程。
+生产 schema 位于 [`supabase/schema.sql`](./supabase/schema.sql)。`.env.local` 仅用于本地开发，已被 `.gitignore` 忽略；GitHub Pages 构建通过 Actions secrets 注入两个客户端配置。不要填写 `service_role` 或 secret key。
