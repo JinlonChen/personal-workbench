@@ -44,11 +44,12 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-## GitHub 与 Vercel 部署
+## GitHub 与 GitHub Pages 部署
 
 1. 将本项目推送到 GitHub 私有仓库。
-2. 在 Vercel 中导入该仓库，使用默认 Next.js 构建设置。
-3. 部署后使用 Vercel 提供的网址访问。
+2. 确认 `.github/workflows/deploy-pages.yml` 已上传。
+3. 在 GitHub 仓库的 `Settings` → `Pages` 中将发布来源设置为 `GitHub Actions`。
+4. 推送到 `main` 后，Actions 会构建 `out/` 并发布到 `https://<用户名>.github.io/<仓库名>/`。
 
 不要提交 `.env.local`、服务密钥、`node_modules/` 或 `.next/`。环境变量模板见 `.env.example`。
 
