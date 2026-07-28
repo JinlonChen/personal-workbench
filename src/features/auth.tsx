@@ -4,9 +4,12 @@ import { Mail, Sparkles } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 
 import { useAuth } from "@/state/auth-provider";
+import { isLocalModeRequested } from "@/data/local-mode";
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { configured, status } = useAuth();
+  const localMode = typeof window !== "undefined" && isLocalModeRequested(window.location.search);
+  if (localMode) return <>{children}</>;
   if (!configured) return <>{children}</>;
   if (status === "loading") return <AuthLoading />;
   if (status === "signed_out") return <SignInView />;
