@@ -4,7 +4,6 @@ import type { Session } from "@supabase/supabase-js";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
 import { getSupabaseClient, isSupabaseConfigured } from "@/data/supabase-client";
-import { getEmailRedirectTo } from "@/data/auth-redirect";
 
 export type AuthStatus = "loading" | "signed_out" | "signed_in";
 
@@ -13,7 +12,8 @@ interface AuthContextValue {
   status: AuthStatus;
   session: Session | null;
   error: string | null;
-  signInWithEmail: (email: string) => Promise<void>;
+  sendEmailCode: (email: string) => Promise<void>;
+  verifyEmailCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -58,18 +58,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status,
     session,
     error,
-    async signInWithEmail(email: string) {
+    async sendEmailCode(email: string) {
       if (!configured) return;
       setError(null);
       const normalizedEmail = email.trim();
       if (!normalizedEmail) throw new Error("请输入邮箱地址。");
-      const redirectTo = typeof window === "undefined" ? undefined : getEmailRedirectTo(new URL(window.location.href));
       const { error: signInError } = await getSupabaseClient().auth.signInWithOtp({
         email: normalizedEmail,
-        options: { emailRedirectTo: redirectTo },
       });
       if (signInError) {
-        const message = `登录邮件发送失败：${signInError.message}`;
+        const message = `验证码发送失败：${signInError.message}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
+    async verifyEmailCode(email: string, code: string) {
+      if (!configured) return;
+      setError(null);
+      const normalizedEmail = email.trim();
+      const normalizedCode = code.trim();
+      if (!normalizedEmail) throw new Error("请输入邮箱地址。");
+      if (!normalizedCode) throw new Error("请输入邮箱验证码。");
+      const { error: verifyError } = await getSupabaseClient().auth.verifyOtp({
+        email: normalizedEmail,
+        token: normalizedCode,
+        type: "email",
+      });
+      if (verifyError) {
+        const message = `验证码验证失败：${verifyError.message}`;
         setError(message);
         throw new Error(message);
       }
