@@ -206,10 +206,28 @@ export function rowsToWorkspace(rows: SupabaseRows): Workspace {
 
 type TableName = "tasks" | "work_entries" | "learning_entries" | "daily_reviews";
 
+class CloudLoadError extends Error {
+  constructor(message: string, readonly status?: number) {
+    super(message);
+    this.name = "CloudLoadError";
+  }
+}
+
 export class SupabaseWorkspaceRepository implements WorkspaceRepository {
   constructor(private readonly client: SupabaseClient, private readonly userId: string) {}
 
   async load(): Promise<Workspace> {
+    try {
+      return await this.loadOnce();
+    } catch (reason) {
+      if (!(reason instanceof CloudLoadError) || reason.status !== 401) throw reason;
+      const { error } = await this.client.auth.refreshSession();
+      if (error) throw reason;
+      return this.loadOnce();
+    }
+  }
+
+  private async loadOnce(): Promise<Workspace> {
     const [profileResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult] = await Promise.all([
       this.client.from("profiles").select("id, display_name, timezone, created_at, updated_at").eq("id", this.userId).maybeSingle(),
       this.client.from("tasks").select("id, user_id, title, description, task_date, priority, status, source, created_at, updated_at").eq("user_id", this.userId).order("task_date", { ascending: false }),
@@ -218,8 +236,14 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       this.client.from("daily_reviews").select("id, user_id, review_date, completed_summary, main_gain, blockers, improvement, tomorrow_focus, mood, energy, notes, created_at, updated_at").eq("user_id", this.userId).order("review_date", { ascending: false }),
     ]);
 
-    const errors = [profileResult.error, tasksResult.error, workEntriesResult.error, learningEntriesResult.error, reviewsResult.error].filter(Boolean);
-    if (errors.length > 0) throw new Error(`云端数据读取失败：${errors[0]?.message ?? "未知错误"}`);
+    const failedResult = [profileResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult]
+      .find((result) => result.error);
+    if (failedResult?.error) {
+      throw new CloudLoadError(
+        `云端数据读取失败：${failedResult.error.message || "未知错误"}`,
+        failedResult.status,
+      );
+    }
 
     const now = new Date().toISOString();
     const profile = profileResult.data ?? {

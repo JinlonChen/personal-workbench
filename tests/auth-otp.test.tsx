@@ -53,4 +53,25 @@ describe("email code sign in", () => {
       type: "email",
     });
   });
+
+  it("shows a readable message when the email service returns an empty server error", async () => {
+    authMocks.signInWithOtp.mockResolvedValueOnce({
+      data: {},
+      error: { message: "{}", status: 500 },
+    });
+    const user = userEvent.setup();
+    render(
+      <AuthProvider>
+        <SignInView />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(authMocks.getSession).toHaveBeenCalled());
+    await user.type(screen.getByLabelText("邮箱地址"), "281033295@qq.com");
+    await user.click(screen.getByRole("button", { name: "发送验证码" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "验证码发送失败：邮件服务暂时不可用，请稍后重试。",
+    );
+  });
 });

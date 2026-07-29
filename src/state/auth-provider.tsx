@@ -19,6 +19,11 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function readableAuthError(error: { message?: string }, fallback: string) {
+  const message = error.message?.trim();
+  return !message || message === "{}" ? fallback : message;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const configured = isSupabaseConfigured();
   const [status, setStatus] = useState<AuthStatus>(configured ? "loading" : "signed_out");
@@ -67,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: normalizedEmail,
       });
       if (signInError) {
-        const message = `验证码发送失败：${signInError.message}`;
+        const message = `验证码发送失败：${readableAuthError(signInError, "邮件服务暂时不可用，请稍后重试。")}`;
         setError(message);
         throw new Error(message);
       }
@@ -85,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         type: "email",
       });
       if (verifyError) {
-        const message = `验证码验证失败：${verifyError.message}`;
+        const message = `验证码验证失败：${readableAuthError(verifyError, "验证服务暂时不可用，请稍后重试。")}`;
         setError(message);
         throw new Error(message);
       }
