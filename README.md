@@ -5,6 +5,7 @@
 ## 当前能力
 
 - 今日工作台、任务、工作记录、学习记录和每日复盘
+- 个人管理重点看板：项目摘要、负责人检查、风险和下一步管理动作
 - 任务新增、编辑、完成、取消、删除和顺延
 - 记录按日期、关键词和标签筛选
 - JSON / Markdown 数据导出
@@ -59,3 +60,5 @@ npm run test:e2e
 ## Supabase
 
 生产 schema 位于 [`supabase/schema.sql`](./supabase/schema.sql)。`.env.local` 仅用于本地开发，已被 `.gitignore` 忽略；GitHub Pages 构建通过 Actions secrets 注入两个客户端配置。不要填写 `service_role` 或 secret key。
+
+已部署过旧版 schema 的项目，在发布重点关注功能前需要执行 [`supabase/migrations/20260805_add_focus_projects.sql`](./supabase/migrations/20260805_add_focus_projects.sql)，用于增加 `focus_projects` 表、索引、触发器和 RLS 策略。

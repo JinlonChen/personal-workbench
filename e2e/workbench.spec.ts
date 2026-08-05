@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const navigation = [
+  ["关注", "重点关注"],
   ["任务", "任务"],
   ["记录", "记录"],
   ["复盘", "每日复盘"],
@@ -8,7 +9,7 @@ const navigation = [
 ] as const;
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?local=1");
   await expect(page.getByRole("heading", { name: "今日工作台", exact: true })).toBeVisible();
 });
 
@@ -20,7 +21,7 @@ test("首页在目标视口内显示工作台且不产生横向溢出", async ({
   expect(fitsViewport).toBeTruthy();
 });
 
-test("主要导航可以打开任务、记录、复盘和设置", async ({ page }) => {
+test("主要导航可以打开关注、任务、记录、复盘和设置", async ({ page }) => {
   const primaryNavigation = page.getByRole("navigation", { name: "主要导航" });
 
   for (const [label, heading] of navigation) {
