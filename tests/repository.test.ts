@@ -65,6 +65,7 @@ describe("LocalWorkspaceRepository", () => {
     expect(workspace.schemaVersion).toBe(1);
     expect(workspace.profile.displayName).toBe("旧数据");
     expect(workspace.profile.id).toBe("local-user");
+    expect(workspace.focusProjects).toEqual([]);
   });
 
   it("reports corrupted stored data without overwriting it", async () => {

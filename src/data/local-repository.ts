@@ -21,6 +21,7 @@ function normalizeWorkspace(value: LegacyWorkspace): Workspace {
       createdAt: value.profile?.createdAt ?? now,
       updatedAt: value.profile?.updatedAt ?? now,
     },
+    focusProjects: Array.isArray(value.focusProjects) ? value.focusProjects : [],
     tasks: Array.isArray(value.tasks) ? value.tasks : [],
     workEntries: Array.isArray(value.workEntries) ? value.workEntries : [],
     learningEntries: Array.isArray(value.learningEntries) ? value.learningEntries : [],

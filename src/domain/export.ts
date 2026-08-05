@@ -1,5 +1,11 @@
 import type { Workspace } from "./types";
 
+const focusStatusLabels = {
+  on_track: "正常",
+  attention: "需关注",
+  blocked: "已阻塞",
+} as const;
+
 export function exportJson(workspace: Workspace): string {
   return JSON.stringify(workspace, null, 2);
 }
@@ -11,6 +17,16 @@ export function exportMarkdown(workspace: Workspace): string {
     `用户：${workspace.profile.displayName}`,
     `时区：${workspace.profile.timezone}`,
     "",
+    "## 重点关注",
+    ...workspace.focusProjects.flatMap((project) => [
+      `### ${project.name}`,
+      `负责人：${project.owner}`,
+      `状态：${focusStatusLabels[project.status]}`,
+      project.currentGoal ? `当前目标：${project.currentGoal}` : "",
+      project.risk ? `风险：${project.risk}` : "",
+      project.nextAction ? `我的下一步：${project.nextAction}` : "",
+      "",
+    ]),
     "## 任务",
     ...workspace.tasks.map((task) => `- [${task.status === "done" ? "x" : " "}] ${task.taskDate} · ${task.title}`),
     "",

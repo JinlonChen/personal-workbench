@@ -13,6 +13,7 @@ export function createSeedWorkspace(date = todayKey()): Workspace {
       createdAt: now,
       updatedAt: now,
     },
+    focusProjects: [],
     tasks: [
       {
         id: createId(),

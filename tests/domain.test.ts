@@ -36,6 +36,23 @@ const workspace: Workspace = {
     createdAt: now,
     updatedAt: now,
   },
+  focusProjects: [
+    {
+      id: "focus-one",
+      name: "新型破碎主机开发",
+      platformUrl: "https://projects.example.com/one",
+      owner: "张工",
+      tier: "top",
+      status: "attention",
+      currentGoal: "完成关键参数方案评审",
+      risk: "试验资源冲突",
+      nextAction: "协调试验台排期",
+      latestConclusion: "需要本周完成资源协调",
+      nextReviewDate: "2026-07-30",
+      createdAt: now,
+      updatedAt: now,
+    },
+  ],
   tasks: [
     task({ id: "one", title: "完成方案", status: "done" }),
     task({ id: "two", title: "复核数据", status: "todo" }),
@@ -147,5 +164,7 @@ describe("exports", () => {
     expect(markdown).toContain("完成登录流程");
     expect(markdown).toContain("理解 RLS 策略");
     expect(markdown).toContain("完成工作台");
+    expect(markdown).toContain("## 重点关注");
+    expect(markdown).toContain("新型破碎主机开发");
   });
 });

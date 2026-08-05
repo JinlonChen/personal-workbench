@@ -1,5 +1,7 @@
 export type TaskPriority = "high" | "medium" | "low";
 export type TaskStatus = "todo" | "doing" | "done" | "cancelled";
+export type FocusProjectStatus = "on_track" | "attention" | "blocked";
+export type FocusProjectTier = "top" | "parallel" | "paused";
 export type Mood = "low" | "neutral" | "steady" | "good" | "great";
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -19,6 +21,22 @@ export interface WorkspaceTask {
   priority: TaskPriority;
   status: TaskStatus;
   source: "manual" | "work_entry";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FocusProject {
+  id: string;
+  name: string;
+  platformUrl: string;
+  owner: string;
+  tier: FocusProjectTier;
+  status: FocusProjectStatus;
+  currentGoal: string;
+  risk: string;
+  nextAction: string;
+  latestConclusion: string;
+  nextReviewDate: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +84,7 @@ export interface DailyReview {
 export interface Workspace {
   schemaVersion: 1;
   profile: Profile;
+  focusProjects: FocusProject[];
   tasks: WorkspaceTask[];
   workEntries: WorkEntry[];
   learningEntries: LearningEntry[];
@@ -73,6 +92,7 @@ export interface Workspace {
 }
 
 export type TaskInput = Pick<WorkspaceTask, "title" | "description" | "taskDate" | "priority" | "status">;
+export type FocusProjectInput = Omit<FocusProject, "id" | "createdAt" | "updatedAt">;
 export type WorkEntryInput = Pick<WorkEntry, "entryDate" | "title" | "content" | "result" | "taskId" | "tags">;
 export type LearningEntryInput = Pick<
   LearningEntry,
