@@ -7,8 +7,8 @@ const schemaPath = path.resolve(process.cwd(), "supabase/schema.sql");
 const schemaExists = existsSync(schemaPath);
 const schemaSource = schemaExists ? readFileSync(schemaPath, "utf8") : "";
 
-const tables = ["profiles", "tasks", "work_entries", "learning_entries", "daily_reviews"] as const;
-const businessTables = ["tasks", "work_entries", "learning_entries", "daily_reviews"] as const;
+const tables = ["profiles", "focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews"] as const;
+const businessTables = ["focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews"] as const;
 
 function normalizeSql(candidate: string) {
   return candidate.toLowerCase().replace(/\s+/g, " ").trim();
@@ -115,6 +115,7 @@ function assertWorkspaceTables(candidate: string) {
 
 function assertDateIndexes(candidate: string) {
   const dateFields = {
+    focus_projects: "next_review_date",
     tasks: "task_date",
     work_entries: "entry_date",
     learning_entries: "entry_date",
@@ -180,9 +181,16 @@ function assertUpdatedAtFunction(candidate: string) {
 }
 
 function assertBoundConstraints(candidate: string) {
+  const focusProjects = requireStatement(candidate, /^create table public\.focus_projects \(/, "focus_projects table");
   const tasks = requireStatement(candidate, /^create table public\.tasks \(/, "tasks table");
   const reviews = requireStatement(candidate, /^create table public\.daily_reviews \(/, "daily_reviews table");
 
+  expect(focusProjects).toMatch(
+    /\btier text not null default 'parallel' check \(tier in \('top', 'parallel', 'paused'\)\)/,
+  );
+  expect(focusProjects).toMatch(
+    /\bstatus text not null default 'on_track' check \(status in \('on_track', 'attention', 'blocked'\)\)/,
+  );
   expect(tasks).toMatch(/\bpriority text not null default 'medium' check \(priority in \('high', 'medium', 'low'\)\)/);
   expect(tasks).toMatch(
     /\bstatus text not null default 'todo' check \(status in \('todo', 'doing', 'done', 'cancelled'\)\)/,
@@ -308,14 +316,14 @@ describe("schema contract regression coverage", () => {
   it("rejects a CRUD policy with the wrong owner column or incomplete update check", () => {
     const wrongOwner = replaceRequired(
       schemaSource,
-      "for select using (auth.uid() = user_id);",
-      "for select using (auth.uid() = id);",
+      "create policy tasks_select_own on public.tasks\nfor select using (auth.uid() = user_id);",
+      "create policy tasks_select_own on public.tasks\nfor select using (auth.uid() = id);",
       "change tasks select owner",
     );
     const incompleteUpdate = replaceRequired(
       schemaSource,
-      "for update using (auth.uid() = user_id) with check (auth.uid() = user_id);",
-      "for update using (auth.uid() = user_id);",
+      "create policy tasks_update_own on public.tasks\nfor update using (auth.uid() = user_id) with check (auth.uid() = user_id);",
+      "create policy tasks_update_own on public.tasks\nfor update using (auth.uid() = user_id);",
       "remove tasks update check",
     );
 

@@ -8,6 +8,23 @@ create table public.profiles (
   updated_at timestamptz not null default now()
 );
 
+create table public.focus_projects (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  platform_url text not null default '',
+  owner text not null,
+  tier text not null default 'parallel' check (tier in ('top', 'parallel', 'paused')),
+  status text not null default 'on_track' check (status in ('on_track', 'attention', 'blocked')),
+  current_goal text not null default '',
+  risk text not null default '',
+  next_action text not null default '',
+  latest_conclusion text not null default '',
+  next_review_date date not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table public.tasks (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -82,6 +99,10 @@ create trigger profiles_set_updated_at
 before update on public.profiles
 for each row execute function public.set_updated_at();
 
+create trigger focus_projects_set_updated_at
+before update on public.focus_projects
+for each row execute function public.set_updated_at();
+
 create trigger tasks_set_updated_at
 before update on public.tasks
 for each row execute function public.set_updated_at();
@@ -99,6 +120,7 @@ before update on public.daily_reviews
 for each row execute function public.set_updated_at();
 
 create index tasks_user_date_idx on public.tasks (user_id, task_date);
+create index focus_projects_user_date_idx on public.focus_projects (user_id, next_review_date);
 create index work_entries_user_date_idx on public.work_entries (user_id, entry_date);
 create index learning_entries_user_date_idx on public.learning_entries (user_id, entry_date);
 create index daily_reviews_user_date_idx on public.daily_reviews (user_id, review_date);
@@ -118,6 +140,7 @@ create index work_entries_tags_idx on public.work_entries using gin (tags);
 create index learning_entries_tags_idx on public.learning_entries using gin (tags);
 
 alter table public.profiles enable row level security;
+alter table public.focus_projects enable row level security;
 alter table public.tasks enable row level security;
 alter table public.work_entries enable row level security;
 alter table public.learning_entries enable row level security;
@@ -131,6 +154,15 @@ create policy profiles_update_own on public.profiles
 for update using (auth.uid() = id) with check (auth.uid() = id);
 create policy profiles_delete_own on public.profiles
 for delete using (auth.uid() = id);
+
+create policy focus_projects_select_own on public.focus_projects
+for select using (auth.uid() = user_id);
+create policy focus_projects_insert_own on public.focus_projects
+for insert with check (auth.uid() = user_id);
+create policy focus_projects_update_own on public.focus_projects
+for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy focus_projects_delete_own on public.focus_projects
+for delete using (auth.uid() = user_id);
 
 create policy tasks_select_own on public.tasks
 for select using (auth.uid() = user_id);

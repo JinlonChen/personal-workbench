@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { WorkspaceRepository } from "./repository";
-import type { DailyReview, Profile, Workspace, WorkspaceTask } from "@/domain/types";
+import type { DailyReview, FocusProject, Profile, Workspace, WorkspaceTask } from "@/domain/types";
 
 export type ProfileRow = {
   id: string;
@@ -20,6 +20,23 @@ export type TaskRow = {
   priority: WorkspaceTask["priority"];
   status: WorkspaceTask["status"];
   source: WorkspaceTask["source"];
+  created_at: string;
+  updated_at: string;
+};
+
+export type FocusProjectRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  platform_url: string;
+  owner: string;
+  tier: FocusProject["tier"];
+  status: FocusProject["status"];
+  current_goal: string;
+  risk: string;
+  next_action: string;
+  latest_conclusion: string;
+  next_review_date: string;
   created_at: string;
   updated_at: string;
 };
@@ -69,6 +86,7 @@ export type DailyReviewRow = {
 
 export type SupabaseRows = {
   profile: ProfileRow;
+  focusProjects: FocusProjectRow[];
   tasks: TaskRow[];
   workEntries: WorkEntryRow[];
   learningEntries: LearningEntryRow[];
@@ -88,6 +106,22 @@ function profileToRow(profile: Profile, userId: string): ProfileRow {
 export function workspaceToRows(workspace: Workspace, userId: string): SupabaseRows {
   return {
     profile: profileToRow(workspace.profile, userId),
+    focusProjects: workspace.focusProjects.map((project) => ({
+      id: project.id,
+      user_id: userId,
+      name: project.name,
+      platform_url: project.platformUrl,
+      owner: project.owner,
+      tier: project.tier,
+      status: project.status,
+      current_goal: project.currentGoal,
+      risk: project.risk,
+      next_action: project.nextAction,
+      latest_conclusion: project.latestConclusion,
+      next_review_date: project.nextReviewDate,
+      created_at: project.createdAt,
+      updated_at: project.updatedAt,
+    })),
     tasks: workspace.tasks.map((task) => ({
       id: task.id,
       user_id: userId,
@@ -153,6 +187,21 @@ export function rowsToWorkspace(rows: SupabaseRows): Workspace {
       createdAt: rows.profile.created_at,
       updatedAt: rows.profile.updated_at,
     },
+    focusProjects: rows.focusProjects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      platformUrl: project.platform_url,
+      owner: project.owner,
+      tier: project.tier,
+      status: project.status,
+      currentGoal: project.current_goal,
+      risk: project.risk,
+      nextAction: project.next_action,
+      latestConclusion: project.latest_conclusion,
+      nextReviewDate: project.next_review_date,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at,
+    })),
     tasks: rows.tasks.map((task) => ({
       id: task.id,
       title: task.title,
@@ -204,7 +253,7 @@ export function rowsToWorkspace(rows: SupabaseRows): Workspace {
   };
 }
 
-type TableName = "tasks" | "work_entries" | "learning_entries" | "daily_reviews";
+type TableName = "focus_projects" | "tasks" | "work_entries" | "learning_entries" | "daily_reviews";
 
 class CloudLoadError extends Error {
   constructor(message: string, readonly status?: number) {
@@ -228,15 +277,16 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
   }
 
   private async loadOnce(): Promise<Workspace> {
-    const [profileResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult] = await Promise.all([
+    const [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult] = await Promise.all([
       this.client.from("profiles").select("id, display_name, timezone, created_at, updated_at").eq("id", this.userId).maybeSingle(),
+      this.client.from("focus_projects").select("id, user_id, name, platform_url, owner, tier, status, current_goal, risk, next_action, latest_conclusion, next_review_date, created_at, updated_at").eq("user_id", this.userId).order("next_review_date", { ascending: true }),
       this.client.from("tasks").select("id, user_id, title, description, task_date, priority, status, source, created_at, updated_at").eq("user_id", this.userId).order("task_date", { ascending: false }),
       this.client.from("work_entries").select("id, user_id, entry_date, title, content, result, task_id, tags, created_at, updated_at").eq("user_id", this.userId).order("entry_date", { ascending: false }),
       this.client.from("learning_entries").select("id, user_id, entry_date, title, content, source_url, key_points, next_action, tags, created_at, updated_at").eq("user_id", this.userId).order("entry_date", { ascending: false }),
       this.client.from("daily_reviews").select("id, user_id, review_date, completed_summary, main_gain, blockers, improvement, tomorrow_focus, mood, energy, notes, created_at, updated_at").eq("user_id", this.userId).order("review_date", { ascending: false }),
     ]);
 
-    const failedResult = [profileResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult]
+    const failedResult = [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult]
       .find((result) => result.error);
     if (failedResult?.error) {
       throw new CloudLoadError(
@@ -255,6 +305,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     };
     return rowsToWorkspace({
       profile,
+      focusProjects: (focusProjectsResult.data ?? []) as FocusProjectRow[],
       tasks: (tasksResult.data ?? []) as TaskRow[],
       workEntries: (workEntriesResult.data ?? []) as WorkEntryRow[],
       learningEntries: (learningEntriesResult.data ?? []) as LearningEntryRow[],
@@ -266,6 +317,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     const rows = workspaceToRows(workspace, this.userId);
     try {
       await this.assertSuccess(this.client.from("profiles").upsert(rows.profile, { onConflict: "id" }));
+      await this.syncTable("focus_projects", rows.focusProjects);
       await this.syncTable("tasks", rows.tasks);
       await this.syncTable("work_entries", rows.workEntries);
       await this.syncTable("learning_entries", rows.learningEntries);
@@ -282,6 +334,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       await this.deleteAll("work_entries");
       await this.deleteAll("learning_entries");
       await this.deleteAll("tasks");
+      await this.deleteAll("focus_projects");
     } catch (reason) {
       throw new Error(`云端清空失败：${reason instanceof Error ? reason.message : "未知错误"}`);
     }
