@@ -8,7 +8,21 @@ import { LocalWorkspaceRepository } from "@/data/local-repository";
 import { createSeedWorkspace } from "@/data/seed";
 import { nextDate } from "@/domain/date";
 import { createId } from "@/domain/id";
-import type { DailyReview, DailyReviewInput, LearningEntry, LearningEntryInput, Profile, SaveStatus, TaskInput, WorkEntry, WorkEntryInput, Workspace, WorkspaceTask } from "@/domain/types";
+import type {
+  DailyReview,
+  DailyReviewInput,
+  FocusProject,
+  FocusProjectInput,
+  LearningEntry,
+  LearningEntryInput,
+  Profile,
+  SaveStatus,
+  TaskInput,
+  WorkEntry,
+  WorkEntryInput,
+  Workspace,
+  WorkspaceTask,
+} from "@/domain/types";
 import { useAuth } from "./auth-provider";
 
 interface WorkspaceContextValue {
@@ -20,6 +34,9 @@ interface WorkspaceContextValue {
   replaceWorkspace: (next: Workspace) => Promise<void>;
   migrateLocalData: () => Promise<void>;
   startFreshCloudWorkspace: () => Promise<void>;
+  createFocusProject: (input: FocusProjectInput) => Promise<void>;
+  updateFocusProject: (id: string, patch: FocusProjectInput) => Promise<void>;
+  deleteFocusProject: (id: string) => Promise<void>;
   createTask: (input: TaskInput) => Promise<void>;
   updateTask: (id: string, patch: Partial<TaskInput>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
@@ -38,7 +55,7 @@ interface WorkspaceContextValue {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 function hasLocalData(workspace: Workspace) {
-  return workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0;
+  return workspace.focusProjects.length > 0 || workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0;
 }
 
 function MigrationDialog({ onUpload, onStartFresh }: { onUpload: () => void; onStartFresh: () => void }) {
@@ -47,7 +64,7 @@ function MigrationDialog({ onUpload, onStartFresh }: { onUpload: () => void; onS
       <section className="confirm-panel migration-panel" role="dialog" aria-modal="true" aria-labelledby="migration-title">
         <div>
           <h2 id="migration-title">发现本地数据</h2>
-          <p>云端账号还是空的。要把这台设备上的任务、记录和复盘上传到云端吗？上传后，其他设备登录同一邮箱即可看到这些内容。</p>
+          <p>云端账号还是空的。要把这台设备上的重点项目、任务、记录和复盘上传到云端吗？上传后，其他设备登录同一邮箱即可看到这些内容。</p>
         </div>
         <div className="dialog-actions">
           <button className="button secondary" type="button" onClick={onStartFresh}>从云端重新开始</button>
@@ -172,6 +189,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function createFocusProject(input: FocusProjectInput) {
+    if (!workspace) return;
+    const now = new Date().toISOString();
+    const project: FocusProject = { id: createId(), createdAt: now, updatedAt: now, ...input };
+    await replaceWorkspace({ ...workspace, focusProjects: [project, ...workspace.focusProjects] });
+  }
+
+  async function updateFocusProject(id: string, patch: FocusProjectInput) {
+    if (!workspace) return;
+    const updatedAt = new Date().toISOString();
+    await replaceWorkspace({
+      ...workspace,
+      focusProjects: workspace.focusProjects.map((project) => project.id === id ? { ...project, ...patch, updatedAt } : project),
+    });
+  }
+
+  async function deleteFocusProject(id: string) {
+    if (!workspace) return;
+    await replaceWorkspace({
+      ...workspace,
+      focusProjects: workspace.focusProjects.filter((project) => project.id !== id),
+    });
+  }
+
   async function createTask(input: TaskInput) {
     if (!workspace) return;
     const now = new Date().toISOString();
@@ -287,7 +328,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, updateProfile, resetWorkspace }}>
+    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createFocusProject, updateFocusProject, deleteFocusProject, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, updateProfile, resetWorkspace }}>
       {children}
       {migrationPending ? <MigrationDialog onUpload={() => void migrateLocalData()} onStartFresh={() => void startFreshCloudWorkspace()} /> : null}
     </WorkspaceContext.Provider>

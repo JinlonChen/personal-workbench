@@ -9,11 +9,14 @@ describe("workbench navigation", () => {
     localStorage.clear();
   });
 
-  it("navigates among the five workbench views", async () => {
+  it("navigates among the six workbench views", async () => {
     const user = userEvent.setup();
     render(<Home />);
 
     await waitFor(() => expect(screen.getByRole("heading", { name: "今日工作台" })).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "关注" }));
+    expect(screen.getByRole("heading", { name: "重点关注" })).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "任务" }));
     expect(screen.getByRole("heading", { name: "任务" })).toBeInTheDocument();
 
@@ -25,6 +28,42 @@ describe("workbench navigation", () => {
 
     await user.click(screen.getByRole("button", { name: "设置" }));
     expect(screen.getByRole("heading", { name: "设置" })).toBeInTheDocument();
+  });
+
+  it("manages a focus project and turns its next action into today's task", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "关注" }));
+    expect(screen.getByText("还没有重点关注项目")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "新增关注项目" }));
+    await user.type(screen.getByLabelText("项目名称"), "新型破碎主机开发");
+    await user.type(screen.getByLabelText("负责人"), "张工");
+    await user.type(screen.getByLabelText("本周目标或当前节点"), "完成关键参数方案评审");
+    await user.type(screen.getByLabelText("我的下一步"), "协调试验台排期");
+    await user.click(screen.getByRole("button", { name: "保存项目" }));
+
+    expect(await screen.findByText("新型破碎主机开发")).toBeInTheDocument();
+    expect(screen.getAllByText("张工").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "编辑 新型破碎主机开发" }));
+    const ownerInput = screen.getByLabelText("负责人");
+    await user.clear(ownerInput);
+    await user.type(ownerInput, "李工");
+    await user.click(screen.getByRole("button", { name: "保存项目" }));
+    expect((await screen.findAllByText("李工")).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "将 协调试验台排期 加入今日任务" }));
+    await user.click(screen.getByRole("button", { name: "任务" }));
+    expect(await screen.findByText("协调试验台排期")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "关注" }));
+    await user.click(screen.getByRole("button", { name: "删除 新型破碎主机开发" }));
+    expect(screen.getByRole("dialog", { name: "确认删除重点项目" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    expect(screen.queryByText("新型破碎主机开发")).not.toBeInTheDocument();
   });
 
   it("creates and completes a task", async () => {

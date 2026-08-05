@@ -832,6 +832,164 @@ button {
 .review-callout h2 { margin: 0 0 4px; font-size: 16px; }
 .review-callout p { margin: 0; color: var(--muted); font-size: 13px; }
 
+.focus-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.focus-summary-grid > div {
+  padding: 15px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.focus-summary-grid span { color: var(--muted); font-size: 12px; }
+.focus-summary-grid strong { font-size: 22px; }
+.summary-warning { color: var(--warning); }
+.summary-danger { color: var(--danger); }
+.summary-good { color: var(--accent); }
+
+.focus-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.75fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.focus-panel {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.focus-panel-header {
+  min-height: 70px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.focus-panel-header h2 { margin: 0 0 4px; font-size: 17px; }
+.focus-panel-header p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.focus-project-list { padding: 10px; }
+
+.focus-project-card {
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 7px;
+  background: #fbfcfb;
+}
+
+.focus-project-card + .focus-project-card { margin-top: 9px; }
+.focus-project-card.focus-status-on_track { border-left-color: var(--accent); }
+.focus-project-card.focus-status-attention { border-left-color: #c98720; background: #fffcf7; }
+.focus-project-card.focus-status-blocked { border-left-color: var(--danger); background: #fffafa; }
+
+.focus-project-card > header,
+.focus-project-card > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-project-title { min-width: 0; display: flex; align-items: center; gap: 10px; }
+.focus-project-title h3 { margin: 0 0 4px; font-size: 15px; }
+.focus-project-title span:not(.focus-status-dot) { color: var(--muted); font-size: 11px; }
+.focus-status-dot { width: 9px; height: 9px; flex: none; border-radius: 50%; background: var(--accent); }
+.focus-status-dot.attention { background: #c98720; }
+.focus-status-dot.blocked { background: var(--danger); }
+.focus-row-actions { opacity: 1; }
+
+.focus-project-owner {
+  margin: 12px 0 0 19px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.focus-project-owner svg:nth-of-type(2) { margin-left: 9px; }
+
+.focus-project-details {
+  margin: 13px 0 14px 19px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 12px;
+}
+
+.focus-project-details > div {
+  padding-left: 9px;
+  border-left: 2px solid var(--border);
+}
+
+.focus-project-details span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 11px; }
+.focus-project-details strong { display: block; font-size: 12px; font-weight: 600; line-height: 1.5; white-space: pre-wrap; }
+.focus-project-card > footer { padding-top: 12px; border-top: 1px solid var(--border); }
+.focus-no-link { color: var(--muted); font-size: 11px; }
+.compact-button { min-height: 34px; padding: 0 11px; font-size: 12px; }
+.focus-side-stack { display: grid; gap: 14px; }
+.focus-action-list,
+.focus-owner-list { padding: 6px 14px 10px; }
+
+.focus-action-item {
+  padding: 11px 2px;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border-bottom: 1px solid #edf0ed;
+}
+
+.focus-action-item:last-child,
+.focus-owner-item:last-child { border-bottom: 0; }
+.focus-action-item > svg { margin-top: 1px; flex: none; color: var(--accent); }
+.focus-action-item div { min-width: 0; }
+.focus-action-item strong { display: block; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.focus-action-item span { display: block; margin-top: 3px; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+.focus-owner-item {
+  padding: 10px 2px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid #edf0ed;
+}
+
+.focus-owner-avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 7px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.focus-owner-item strong { display: block; font-size: 13px; }
+.focus-owner-item div span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.focus-owner-item time { color: var(--muted); font-size: 10px; }
+.focus-side-empty { min-height: 98px; padding: 20px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 7px; color: var(--muted); font-size: 12px; text-align: center; }
+
+.focus-principle {
+  padding: 15px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  border-radius: 7px;
+  background: var(--foreground);
+  color: var(--surface);
+}
+
+.focus-principle svg { margin-top: 2px; color: #b9dbc9; }
+.focus-principle p { margin: 0; font-size: 12px; line-height: 1.6; }
+.focus-principle strong { display: block; margin-bottom: 3px; color: #b9dbc9; }
+.focus-footer-link { margin-top: 16px; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+
 .mobile-header {
   display: none;
 }
@@ -888,7 +1046,7 @@ button {
 
   .nav-items {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 2px;
   }
 
@@ -950,6 +1108,11 @@ button {
   .data-facts { flex-direction: column; gap: 14px; }
   .danger-zone { align-items: flex-start; flex-direction: column; }
   .danger-zone .button { width: 100%; }
+  .focus-summary-grid { grid-template-columns: 1fr 1fr; }
+  .focus-dashboard-grid { grid-template-columns: 1fr; }
+  .focus-project-details { grid-template-columns: 1fr; }
+  .focus-project-card > footer { align-items: flex-start; flex-direction: column; }
+  .focus-project-card > footer .button { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

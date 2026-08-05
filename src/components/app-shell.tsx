@@ -7,6 +7,7 @@ import {
   Settings,
   Sparkles,
   SunMedium,
+  Target,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -16,12 +17,14 @@ import { TodayView } from "@/features/today";
 import { RecordsView } from "@/features/records";
 import { ReviewsView } from "@/features/reviews";
 import { SettingsView } from "@/features/settings";
+import { FocusView } from "@/features/focus";
 import { useWorkspace } from "@/state/workspace-provider";
 
-type View = "today" | "tasks" | "records" | "reviews" | "settings";
+type View = "today" | "focus" | "tasks" | "records" | "reviews" | "settings";
 
 const navItems = [
   { id: "today", label: "今日", icon: SunMedium },
+  { id: "focus", label: "关注", icon: Target },
   { id: "tasks", label: "任务", icon: CheckSquare2 },
   { id: "records", label: "记录", icon: NotebookPen },
   { id: "reviews", label: "复盘", icon: CalendarDays },
@@ -31,12 +34,14 @@ const navItems = [
 function ViewPlaceholder({ view, onNavigate }: { view: View; onNavigate: (view: View) => void }) {
   const headings: Record<View, string> = {
     today: "今日工作台",
+    focus: "重点关注",
     tasks: "任务",
     records: "记录",
     reviews: "每日复盘",
     settings: "设置",
   };
   if (view === "today") return <TodayView onNavigate={onNavigate} />;
+  if (view === "focus") return <FocusView />;
   if (view === "tasks") return <TasksView />;
   if (view === "records") return <RecordsView />;
   if (view === "reviews") return <ReviewsView />;
