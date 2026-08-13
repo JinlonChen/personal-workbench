@@ -13,6 +13,7 @@ import type {
   DailyReviewInput,
   FocusProject,
   FocusProjectInput,
+  FocusSession,
   LearningEntry,
   LearningEntryInput,
   Profile,
@@ -48,6 +49,7 @@ interface WorkspaceContextValue {
   updateLearningEntry: (id: string, patch: LearningEntryInput) => Promise<void>;
   deleteLearningEntry: (id: string) => Promise<void>;
   upsertReview: (input: DailyReviewInput) => Promise<void>;
+  createFocusSession: (input: Omit<FocusSession, "createdAt">) => Promise<void>;
   updateProfile: (patch: Pick<Profile, "displayName" | "timezone">) => Promise<void>;
   resetWorkspace: () => Promise<void>;
 }
@@ -287,6 +289,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     await replaceWorkspace({ ...workspace, dailyReviews: [review, ...workspace.dailyReviews.filter((item) => item.reviewDate !== input.reviewDate)] });
   }
 
+  async function createFocusSession(input: Omit<FocusSession, "createdAt">) {
+    if (!workspace) return;
+    if (workspace.focusSessions.some((session) => session.id === input.id)) return;
+    await replaceWorkspace({
+      ...workspace,
+      focusSessions: [
+        { ...input, createdAt: new Date().toISOString() },
+        ...workspace.focusSessions,
+      ],
+    });
+  }
+
   async function updateProfile(patch: Pick<Profile, "displayName" | "timezone">) {
     if (!workspace) return;
     await replaceWorkspace({ ...workspace, profile: { ...workspace.profile, ...patch, updatedAt: new Date().toISOString() } });
@@ -328,7 +342,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createFocusProject, updateFocusProject, deleteFocusProject, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, updateProfile, resetWorkspace }}>
+    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createFocusProject, updateFocusProject, deleteFocusProject, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, createFocusSession, updateProfile, resetWorkspace }}>
       {children}
       {migrationPending ? <MigrationDialog onUpload={() => void migrateLocalData()} onStartFresh={() => void startFreshCloudWorkspace()} /> : null}
     </WorkspaceContext.Provider>

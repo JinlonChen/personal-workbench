@@ -40,10 +40,20 @@ describe("Supabase workspace mapping", () => {
     expect(rows.workEntries).toEqual([]);
     expect(rows.learningEntries).toEqual([]);
     expect(rows.dailyReviews).toEqual([]);
+    expect(rows.focusSessions).toEqual([]);
   });
 
   it("restores a workspace from database rows", () => {
     const workspace = createSeedWorkspace("2026-07-28");
+    workspace.focusSessions = [{
+      id: "session-1",
+      taskId: workspace.tasks[0].id,
+      taskTitle: workspace.tasks[0].title,
+      focusDate: "2026-07-28",
+      plannedMinutes: 25,
+      completedAt: "2026-07-28T09:25:00.000Z",
+      createdAt: "2026-07-28T09:25:00.000Z",
+    }];
     workspace.focusProjects = [
       {
         id: "focus-1",
@@ -64,10 +74,11 @@ describe("Supabase workspace mapping", () => {
     const rows = workspaceToRows(workspace, "user-1");
     const restored = rowsToWorkspace(rows);
 
-    expect(restored.schemaVersion).toBe(1);
+    expect(restored.schemaVersion).toBe(2);
     expect(restored.profile.id).toBe("user-1");
     expect(restored.tasks).toEqual(workspace.tasks);
     expect(restored.focusProjects).toEqual(workspace.focusProjects);
+    expect(restored.focusSessions).toEqual(workspace.focusSessions);
   });
 
   it("refreshes the session and retries a load after one 401 response", async () => {
@@ -93,7 +104,7 @@ describe("Supabase workspace mapping", () => {
     const workspace = await new SupabaseWorkspaceRepository(client, "user-1").load();
 
     expect(refreshSession).toHaveBeenCalledTimes(1);
-    expect(from).toHaveBeenCalledTimes(12);
+    expect(from).toHaveBeenCalledTimes(14);
     expect(workspace.profile.id).toBe("user-1");
   });
 });
