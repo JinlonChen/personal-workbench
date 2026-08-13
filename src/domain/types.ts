@@ -1,5 +1,7 @@
 export type TaskPriority = "high" | "medium" | "low";
 export type TaskStatus = "todo" | "doing" | "done" | "cancelled";
+export type TaskPlacement = "scheduled" | "backlog";
+export type TaskBacklogKind = "unscheduled" | "unexecuted" | null;
 export type FocusProjectStatus = "on_track" | "attention" | "blocked";
 export type FocusProjectTier = "top" | "parallel" | "paused";
 export type Mood = "low" | "neutral" | "steady" | "good" | "great";
@@ -19,6 +21,9 @@ export interface WorkspaceTask {
   title: string;
   description: string;
   taskDate: string;
+  placement: TaskPlacement;
+  backlogKind: TaskBacklogKind;
+  originalTaskDate: string | null;
   priority: TaskPriority;
   status: TaskStatus;
   source: "manual" | "work_entry";
@@ -103,7 +108,7 @@ export interface Workspace {
   focusSessions: FocusSession[];
 }
 
-export type TaskInput = Pick<WorkspaceTask, "title" | "description" | "taskDate" | "priority" | "status">;
+export type TaskInput = Pick<WorkspaceTask, "title" | "description" | "taskDate" | "placement" | "backlogKind" | "originalTaskDate" | "priority" | "status">;
 export type FocusProjectInput = Omit<FocusProject, "id" | "createdAt" | "updatedAt">;
 export type WorkEntryInput = Pick<WorkEntry, "entryDate" | "title" | "content" | "result" | "taskId" | "tags">;
 export type LearningEntryInput = Pick<

@@ -9,6 +9,19 @@ type LegacyWorkspace = Partial<Workspace> & {
   profile?: Partial<Workspace["profile"]>;
 };
 
+function normalizeTasks(tasks: unknown): Workspace["tasks"] {
+  if (!Array.isArray(tasks)) return [];
+  return tasks.map((task) => {
+    const candidate = task as Partial<Workspace["tasks"][number]>;
+    return {
+      ...candidate,
+      placement: candidate.placement === "backlog" ? "backlog" : "scheduled",
+      backlogKind: candidate.backlogKind === "unscheduled" || candidate.backlogKind === "unexecuted" ? candidate.backlogKind : null,
+      originalTaskDate: typeof candidate.originalTaskDate === "string" ? candidate.originalTaskDate : null,
+    } as Workspace["tasks"][number];
+  });
+}
+
 function normalizeWorkspace(value: LegacyWorkspace): Workspace {
   const now = new Date().toISOString();
   const seed = createSeedWorkspace();
@@ -22,7 +35,7 @@ function normalizeWorkspace(value: LegacyWorkspace): Workspace {
       updatedAt: value.profile?.updatedAt ?? now,
     },
     focusProjects: Array.isArray(value.focusProjects) ? value.focusProjects : [],
-    tasks: Array.isArray(value.tasks) ? value.tasks : [],
+    tasks: normalizeTasks(value.tasks),
     workEntries: Array.isArray(value.workEntries) ? value.workEntries : [],
     learningEntries: Array.isArray(value.learningEntries) ? value.learningEntries : [],
     dailyReviews: Array.isArray(value.dailyReviews) ? value.dailyReviews : [],

@@ -70,6 +70,25 @@ describe("LocalWorkspaceRepository", () => {
     expect(workspace.focusSessions).toEqual([]);
   });
 
+  it("adds ordinary scheduled placement to legacy tasks", async () => {
+    storage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        profile: { displayName: "旧数据", timezone: "Asia/Shanghai" },
+        tasks: [{ id: "task-1", title: "保留任务", taskDate: "2026-08-13", status: "todo" }],
+        workEntries: [],
+        learningEntries: [],
+        dailyReviews: [],
+      }),
+    );
+
+    expect((await new LocalWorkspaceRepository(storage).load()).tasks[0]).toMatchObject({
+      placement: "scheduled",
+      backlogKind: null,
+      originalTaskDate: null,
+    });
+  });
+
   it("preserves existing v1 records while adding the focus-session collection", async () => {
     const seeded = {
       profile: { displayName: "旧用户", timezone: "Asia/Shanghai" },
@@ -87,7 +106,12 @@ describe("LocalWorkspaceRepository", () => {
     expect(workspace.schemaVersion).toBe(2);
     expect(workspace.focusSessions).toEqual([]);
     expect(workspace.focusProjects).toEqual(seeded.focusProjects);
-    expect(workspace.tasks).toEqual(seeded.tasks);
+    expect(workspace.tasks).toEqual([{
+      ...seeded.tasks[0],
+      placement: "scheduled",
+      backlogKind: null,
+      originalTaskDate: null,
+    }]);
     expect(workspace.workEntries).toEqual(seeded.workEntries);
     expect(workspace.learningEntries).toEqual(seeded.learningEntries);
     expect(workspace.dailyReviews).toEqual(seeded.dailyReviews);

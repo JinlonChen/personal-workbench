@@ -3,11 +3,30 @@ import type { DailyReview, FocusSession, LearningEntry, RecordFilters, WorkEntry
 
 export function tasksForDate(tasks: WorkspaceTask[], date: string): WorkspaceTask[] {
   return tasks
-    .filter((task) => task.taskDate === date)
+    .filter((task) => task.placement === "scheduled" && task.taskDate === date)
     .sort((a, b) => {
       const priority = { high: 0, medium: 1, low: 2 };
       return priority[a.priority] - priority[b.priority] || b.createdAt.localeCompare(a.createdAt);
     });
+}
+
+export function backlogTasks(tasks: WorkspaceTask[]): WorkspaceTask[] {
+  return tasks
+    .filter((task) => task.placement === "backlog" && task.status !== "done" && task.status !== "cancelled")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function expireTasks(tasks: WorkspaceTask[], today: string, timestamp = new Date().toISOString()): WorkspaceTask[] {
+  return tasks.map((task) => {
+    if (task.placement !== "scheduled" || task.taskDate >= today || (task.status !== "todo" && task.status !== "doing")) return task;
+    return {
+      ...task,
+      placement: "backlog",
+      backlogKind: "unexecuted",
+      originalTaskDate: task.originalTaskDate ?? task.taskDate,
+      updatedAt: timestamp,
+    };
+  });
 }
 
 export function completionRate(tasks: WorkspaceTask[], date: string): number {

@@ -4,6 +4,8 @@ import { nextDate, todayKey } from "@/domain/date";
 import { exportMarkdown } from "@/domain/export";
 import {
   completionRate,
+  backlogTasks,
+  expireTasks,
   filterLearningEntries,
   filterWorkEntries,
   focusMinutesForTask,
@@ -21,6 +23,9 @@ const task = (overrides: Partial<WorkspaceTask>): WorkspaceTask => ({
   title: "默认任务",
   description: "",
   taskDate: "2026-07-27",
+  placement: "scheduled",
+  backlogKind: null,
+  originalTaskDate: null,
   priority: "medium",
   status: "todo",
   source: "manual",
@@ -136,6 +141,26 @@ describe("date helpers", () => {
 });
 
 describe("workspace selectors", () => {
+  it("separates backlog tasks and moves only expired active scheduled tasks", () => {
+    const tasks = [
+      task({ id: "expired", taskDate: "2026-07-26", status: "doing" }),
+      task({ id: "done", taskDate: "2026-07-26", status: "done" }),
+      task({ id: "cancelled", taskDate: "2026-07-26", status: "cancelled" }),
+      task({ id: "unscheduled", placement: "backlog", backlogKind: "unscheduled" }),
+    ];
+
+    const expired = expireTasks(tasks, "2026-07-27", now);
+    expect(expired.find((item) => item.id === "expired")).toMatchObject({
+      placement: "backlog",
+      backlogKind: "unexecuted",
+      originalTaskDate: "2026-07-26",
+      status: "doing",
+    });
+    expect(expired.find((item) => item.id === "done")).toMatchObject({ placement: "scheduled" });
+    expect(expired.find((item) => item.id === "cancelled")).toMatchObject({ placement: "scheduled" });
+    expect(backlogTasks(expired).map((item) => item.id)).toEqual(["expired", "unscheduled"]);
+  });
+
   it("filters today's tasks and calculates completion", () => {
     expect(tasksForDate(workspace.tasks, "2026-07-27")).toHaveLength(2);
     expect(completionRate(workspace.tasks, "2026-07-27")).toBe(50);
