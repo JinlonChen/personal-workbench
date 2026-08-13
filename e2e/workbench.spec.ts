@@ -61,3 +61,21 @@ test("可以新建任务并将其标记为已完成", async ({ page }) => {
   await checkbox.check();
   await expect(checkbox).toBeChecked();
 });
+
+test("可以创建待办任务并保持手机视口无横向溢出", async ({ page }) => {
+  const primaryNavigation = page.getByRole("navigation", { name: "主要导航" });
+  await primaryNavigation.getByRole("button", { name: "任务", exact: true }).click();
+  const title = `待排期任务 ${Date.now()}`;
+
+  await page.getByRole("button", { name: "新建任务", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "新建任务" });
+  await dialog.getByLabel("任务标题").fill(title);
+  await dialog.getByLabel("创建为待办").check();
+  await dialog.getByRole("button", { name: "保存任务", exact: true }).click();
+  await page.getByRole("button", { name: /^待办任务/ }).click();
+
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(page.getByText("待排期", { exact: true })).toBeVisible();
+  const fitsViewport = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  expect(fitsViewport).toBeTruthy();
+});
