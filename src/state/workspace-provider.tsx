@@ -6,7 +6,8 @@ import { SupabaseWorkspaceRepository } from "@/data/supabase-repository";
 import { getSupabaseClient } from "@/data/supabase-client";
 import { LocalWorkspaceRepository } from "@/data/local-repository";
 import { createSeedWorkspace } from "@/data/seed";
-import { nextDate } from "@/domain/date";
+import { nextDate, todayKey } from "@/domain/date";
+import { expireTasks } from "@/domain/selectors";
 import { createId } from "@/domain/id";
 import type {
   DailyReview,
@@ -92,6 +93,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     () => (typeof window === "undefined" ? null : new LocalWorkspaceRepository(window.localStorage)),
     [],
   );
+
+  useEffect(() => {
+    if (!workspace || !repository) return;
+    const tasks = expireTasks(workspace.tasks, todayKey(workspace.profile.timezone));
+    if (tasks.every((task, index) => task === workspace.tasks[index])) return;
+    void replaceWorkspace({ ...workspace, tasks });
+  }, [repository, workspace]);
 
   useEffect(() => {
     if (!localRepository) return;
@@ -219,7 +227,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   async function createTask(input: TaskInput) {
     if (!workspace) return;
     const now = new Date().toISOString();
-    const task: WorkspaceTask = { id: createId(), source: "manual", createdAt: now, updatedAt: now, ...input };
+    const task: WorkspaceTask = {
+      id: createId(),
+      source: "manual",
+      placement: "scheduled",
+      backlogKind: null,
+      originalTaskDate: null,
+      createdAt: now,
+      updatedAt: now,
+      ...input,
+    };
     await replaceWorkspace({ ...workspace, tasks: [task, ...workspace.tasks] });
   }
 
@@ -244,7 +261,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!workspace) return;
     const task = workspace.tasks.find((item) => item.id === id);
     if (!task) return;
-    await updateTask(id, { taskDate: nextDate(task.taskDate), status: "todo" });
+    await updateTask(id, {
+      taskDate: nextDate(task.taskDate),
+      placement: "scheduled",
+      backlogKind: null,
+      originalTaskDate: null,
+      status: "todo",
+    });
   }
 
   async function createWorkEntry(input: WorkEntryInput) {

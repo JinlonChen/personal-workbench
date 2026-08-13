@@ -1,8 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import Home from "@/app/page";
+import { STORAGE_KEY } from "@/data/local-repository";
+import { createSeedWorkspace } from "@/data/seed";
+import { todayKey } from "@/domain/date";
 import { savePomodoro, startPomodoro } from "@/features/pomodoro-state";
 
 describe("workbench navigation", () => {
@@ -234,5 +237,70 @@ describe("workbench navigation", () => {
 
     expect(screen.getByRole("button", { name: "开始专注" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "暂停" })).not.toBeInTheDocument();
+  });
+
+  it("moves an unfinished past-date task into the marked backlog", async () => {
+    const user = userEvent.setup();
+    const today = todayKey();
+    const yesterday = new Date(`${today}T12:00:00.000Z`);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const plannedDate = yesterday.toISOString().slice(0, 10);
+    const workspace = createSeedWorkspace(today);
+    workspace.tasks.unshift({
+      id: "expired-task",
+      title: "昨天未完成任务",
+      description: "等待重新安排",
+      taskDate: plannedDate,
+      placement: "scheduled",
+      backlogKind: null,
+      originalTaskDate: null,
+      priority: "high",
+      status: "todo",
+      source: "manual",
+      createdAt: "2026-08-01T08:00:00.000Z",
+      updatedAt: "2026-08-01T08:00:00.000Z",
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "任务" }));
+    expect(screen.queryByText("昨天未完成任务")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^待办任务/ }));
+
+    expect(await screen.findByText("昨天未完成任务")).toBeInTheDocument();
+    expect(screen.getAllByText("已部署但未执行")).toHaveLength(2);
+    expect(screen.getByText(`原计划：${new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short", timeZone: "UTC" }).format(new Date(`${plannedDate}T12:00:00.000Z`))}`)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "编辑 昨天未完成任务" }));
+    await user.clear(screen.getByLabelText(/^描述/));
+    await user.type(screen.getByLabelText(/^描述/), "补充说明");
+    await user.click(screen.getByRole("button", { name: "保存任务" }));
+    expect(screen.getAllByText("已部署但未执行")).toHaveLength(2);
+    expect(screen.getByText(`原计划：${new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short", timeZone: "UTC" }).format(new Date(`${plannedDate}T12:00:00.000Z`))}`)).toBeInTheDocument();
+  });
+
+  it("creates an unscheduled backlog task and schedules it into a date", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "任务" }));
+    await user.click(screen.getByRole("button", { name: "新建任务" }));
+    await user.type(screen.getByLabelText("任务标题"), "整理下季度培训素材");
+    await user.click(screen.getByLabelText("创建为待办"));
+    await user.click(screen.getByRole("button", { name: "保存任务" }));
+    await user.click(screen.getByRole("button", { name: /^待办任务/ }));
+
+    expect(await screen.findByText("整理下季度培训素材")).toBeInTheDocument();
+    expect(screen.getByText("待排期")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "安排日期 整理下季度培训素材" }));
+    fireEvent.change(screen.getByLabelText("安排到日期"), { target: { value: "2026-08-20" } });
+    await user.click(screen.getByRole("button", { name: "确认安排" }));
+
+    expect(screen.queryByText("整理下季度培训素材")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "日期任务" }));
+    fireEvent.change(screen.getByLabelText("日期"), { target: { value: "2026-08-20" } });
+    expect(await screen.findByText("整理下季度培训素材")).toBeInTheDocument();
   });
 });
