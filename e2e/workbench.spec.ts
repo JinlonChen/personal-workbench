@@ -21,6 +21,20 @@ test("首页在目标视口内显示工作台且不产生横向溢出", async ({
   expect(fitsViewport).toBeTruthy();
 });
 
+test("手机视口可以使用番茄钟且不产生横向溢出", async ({ page }) => {
+  await expect(page.getByRole("heading", { name: "专注计时", exact: true })).toBeVisible();
+  const fitsViewport = await page.evaluate(
+    () => document.documentElement.scrollWidth <= window.innerWidth,
+  );
+  expect(fitsViewport).toBeTruthy();
+
+  await page.getByRole("button", { name: "开始专注", exact: true }).click();
+  await expect(page.getByRole("button", { name: "暂停", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "放弃", exact: true }).click();
+  await expect(page.getByRole("button", { name: "开始专注", exact: true })).toBeVisible();
+  await expect(page.getByText("今日完成 0 个番茄 · 0 分钟", { exact: true })).toBeVisible();
+});
+
 test("主要导航可以打开关注、任务、记录、复盘和设置", async ({ page }) => {
   const primaryNavigation = page.getByRole("navigation", { name: "主要导航" });
 

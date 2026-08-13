@@ -107,4 +107,24 @@ describe("LocalWorkspaceRepository", () => {
     await repository.clear();
     expect(storage.getItem(STORAGE_KEY)).toBeNull();
   });
+
+  it("persists a completed session after its task association is cleared", async () => {
+    const repository = new LocalWorkspaceRepository(storage);
+    const workspace = await repository.load();
+    const task = workspace.tasks[0];
+    workspace.focusSessions = [{
+      id: "session-1",
+      taskId: null,
+      taskTitle: task.title,
+      focusDate: task.taskDate,
+      plannedMinutes: 25,
+      completedAt: task.updatedAt,
+      createdAt: task.updatedAt,
+    }];
+    workspace.tasks = workspace.tasks.filter((item) => item.id !== task.id);
+
+    await repository.save(workspace);
+
+    expect((await repository.load()).focusSessions).toEqual(workspace.focusSessions);
+  });
 });

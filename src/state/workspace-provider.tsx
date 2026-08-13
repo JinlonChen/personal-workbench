@@ -25,6 +25,7 @@ import type {
   WorkspaceTask,
 } from "@/domain/types";
 import { useAuth } from "./auth-provider";
+import { persistFocusSession } from "./focus-session-action";
 
 interface WorkspaceContextValue {
   workspace: Workspace;
@@ -57,7 +58,7 @@ interface WorkspaceContextValue {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 function hasLocalData(workspace: Workspace) {
-  return workspace.focusProjects.length > 0 || workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0;
+  return workspace.focusProjects.length > 0 || workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0 || workspace.focusSessions.length > 0;
 }
 
 function MigrationDialog({ onUpload, onStartFresh }: { onUpload: () => void; onStartFresh: () => void }) {
@@ -235,6 +236,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       ...workspace,
       tasks: workspace.tasks.filter((task) => task.id !== id),
       workEntries: workspace.workEntries.map((entry) => entry.taskId === id ? { ...entry, taskId: null, updatedAt } : entry),
+      focusSessions: workspace.focusSessions.map((session) => session.taskId === id ? { ...session, taskId: null } : session),
     });
   }
 
@@ -291,14 +293,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   async function createFocusSession(input: Omit<FocusSession, "createdAt">) {
     if (!workspace) return;
-    if (workspace.focusSessions.some((session) => session.id === input.id)) return;
-    await replaceWorkspace({
-      ...workspace,
-      focusSessions: [
-        { ...input, createdAt: new Date().toISOString() },
-        ...workspace.focusSessions,
-      ],
-    });
+    await persistFocusSession(workspace, input, replaceWorkspace);
   }
 
   async function updateProfile(patch: Pick<Profile, "displayName" | "timezone">) {

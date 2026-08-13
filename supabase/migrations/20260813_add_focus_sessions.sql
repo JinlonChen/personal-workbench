@@ -13,17 +13,35 @@ create table if not exists public.focus_sessions (
 create index if not exists focus_sessions_user_date_idx on public.focus_sessions (user_id, focus_date);
 create index if not exists focus_sessions_user_task_idx on public.focus_sessions (user_id, task_id);
 
-create trigger focus_sessions_set_updated_at
-before update on public.focus_sessions
-for each row execute function public.set_updated_at();
+do $$
+begin
+  if not exists (
+    select 1 from pg_trigger
+    where tgname = 'focus_sessions_set_updated_at'
+      and tgrelid = 'public.focus_sessions'::regclass
+  ) then
+    create trigger focus_sessions_set_updated_at
+    before update on public.focus_sessions
+    for each row execute function public.set_updated_at();
+  end if;
+end
+$$;
 
 alter table public.focus_sessions enable row level security;
 
-create policy focus_sessions_select_own on public.focus_sessions
-for select using (auth.uid() = user_id);
-create policy focus_sessions_insert_own on public.focus_sessions
-for insert with check (auth.uid() = user_id);
-create policy focus_sessions_update_own on public.focus_sessions
-for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy focus_sessions_delete_own on public.focus_sessions
-for delete using (auth.uid() = user_id);
+do $$
+begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'focus_sessions' and policyname = 'focus_sessions_select_own') then
+    create policy focus_sessions_select_own on public.focus_sessions for select using (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'focus_sessions' and policyname = 'focus_sessions_insert_own') then
+    create policy focus_sessions_insert_own on public.focus_sessions for insert with check (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'focus_sessions' and policyname = 'focus_sessions_update_own') then
+    create policy focus_sessions_update_own on public.focus_sessions for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'focus_sessions' and policyname = 'focus_sessions_delete_own') then
+    create policy focus_sessions_delete_own on public.focus_sessions for delete using (auth.uid() = user_id);
+  end if;
+end
+$$;

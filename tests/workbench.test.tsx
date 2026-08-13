@@ -205,4 +205,34 @@ describe("workbench navigation", () => {
     const taskRow = screen.getByRole("heading", { name: "整理一条工作记录", level: 3 }).closest("article");
     expect(within(taskRow!).getByText("15 分钟专注")).toBeInTheDocument();
   });
+
+  it("blocks deletion while the selected task has an active Pomodoro", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.selectOptions(screen.getByLabelText("专注任务"), "整理一条工作记录");
+    await user.click(screen.getByRole("button", { name: "开始专注" }));
+    await user.click(screen.getByRole("button", { name: "任务" }));
+    await user.click(screen.getByRole("button", { name: "删除 整理一条工作记录" }));
+
+    expect(screen.getByRole("dialog", { name: "任务正在专注中" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "知道了" }));
+    expect(screen.getByRole("heading", { name: "整理一条工作记录", level: 3 })).toBeInTheDocument();
+  });
+
+  it("clears the active device timer when all workspace data is reset", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "开始专注" }));
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    await user.click(screen.getByRole("button", { name: "清空本地数据" }));
+    await user.click(screen.getByRole("button", { name: "清空全部数据" }));
+    await user.click(screen.getByRole("button", { name: "今日" }));
+
+    expect(screen.getByRole("button", { name: "开始专注" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "暂停" })).not.toBeInTheDocument();
+  });
 });

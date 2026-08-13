@@ -7,6 +7,7 @@ import { ConfirmDialog, PageHeader, SaveIndicator } from "@/components/ui";
 import { exportJson, exportMarkdown } from "@/domain/export";
 import { useWorkspace } from "@/state/workspace-provider";
 import { useAuth } from "@/state/auth-provider";
+import { clearPomodoro } from "./pomodoro-state";
 
 function downloadText(content: string, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -38,7 +39,7 @@ export function SettingsView() {
       <section className="settings-section"><header><div><h2>数据说明</h2><p>当前工作区的数据边界。</p></div><ShieldCheck size={19} /></header><div className="data-facts"><div><Database size={17} /><span><strong>{workspace.tasks.length + workspace.workEntries.length + workspace.learningEntries.length + workspace.dailyReviews.length}</strong><small>{syncMode === "cloud" ? "云端记录总数" : "本地记录总数"}</small></span></div><div>{syncMode === "cloud" ? <Cloud size={17} /> : <HardDrive size={17} />}<span><strong>{syncMode === "cloud" ? "Supabase" : "此浏览器"}</strong><small>当前存储位置</small></span></div></div></section>
       {syncMode === "cloud" ? <section className="settings-section account-section"><header><div><h2>账号</h2><p>退出后，这台设备会恢复为本地模式。</p></div><LogOut size={19} /></header><button className="button secondary" type="button" onClick={() => void signOut()}><LogOut size={16} />退出登录</button></section> : null}
       <section className="danger-zone"><div><h2>清空本地数据</h2><p>删除所有任务、记录、复盘和个人设置，并恢复初始示例。</p></div><button className="button danger-outline" type="button" onClick={() => setConfirming(true)}><Trash2 size={16} />清空本地数据</button></section>
-      {confirming ? <ConfirmDialog title="确认清空数据" description="所有本地记录都会被删除且无法撤销。建议先导出 JSON 备份。" confirmLabel="清空全部数据" onCancel={() => setConfirming(false)} onConfirm={async () => { await resetWorkspace(); setConfirming(false); }} /> : null}
+      {confirming ? <ConfirmDialog title="确认清空数据" description="所有本地记录都会被删除且无法撤销。建议先导出 JSON 备份。" confirmLabel="清空全部数据" onCancel={() => setConfirming(false)} onConfirm={async () => { await resetWorkspace(); clearPomodoro(window.localStorage); setConfirming(false); }} /> : null}
     </section>
   );
 }

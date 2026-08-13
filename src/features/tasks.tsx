@@ -8,6 +8,7 @@ import { formatDate, todayKey } from "@/domain/date";
 import { focusMinutesForTask, tasksForDate } from "@/domain/selectors";
 import type { FocusSession, TaskInput, TaskPriority, TaskStatus, WorkspaceTask } from "@/domain/types";
 import { useWorkspace } from "@/state/workspace-provider";
+import { loadPomodoro } from "./pomodoro-state";
 
 const statusLabels: Record<TaskStatus, string> = {
   todo: "未开始",
@@ -64,7 +65,17 @@ function TaskRow({ task, focusSessions = [] }: { task: WorkspaceTask; focusSessi
   const { updateTask, deleteTask, rollTaskToTomorrow } = useWorkspace();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   const focusMinutes = focusMinutesForTask(focusSessions, task.id);
+
+  function requestDelete() {
+    const active = loadPomodoro(window.localStorage);
+    if (active?.taskId === task.id) {
+      setBlocked(true);
+      return;
+    }
+    setConfirming(true);
+  }
 
   return (
     <>
@@ -87,11 +98,12 @@ function TaskRow({ task, focusSessions = [] }: { task: WorkspaceTask; focusSessi
           {task.status !== "done" && task.status !== "cancelled" ? <button className="icon-button" type="button" onClick={() => rollTaskToTomorrow(task.id)} aria-label={`顺延 ${task.title}`}><CalendarPlus size={17} /></button> : null}
           <button className="icon-button" type="button" onClick={() => setEditing(true)} aria-label={`编辑 ${task.title}`}><Pencil size={17} /></button>
           <button className="icon-button" type="button" onClick={() => updateTask(task.id, { status: "cancelled" })} aria-label={`取消 ${task.title}`}><XCircle size={17} /></button>
-          <button className="icon-button danger-text" type="button" onClick={() => setConfirming(true)} aria-label={`删除 ${task.title}`}><Trash2 size={17} /></button>
+          <button className="icon-button danger-text" type="button" onClick={requestDelete} aria-label={`删除 ${task.title}`}><Trash2 size={17} /></button>
         </div>
       </article>
       {editing ? <TaskForm task={task} date={task.taskDate} onClose={() => setEditing(false)} /> : null}
       {confirming ? <ConfirmDialog title="确认删除任务" description={`“${task.title}”将从本地记录中永久删除。`} confirmLabel="确认删除" onCancel={() => setConfirming(false)} onConfirm={() => deleteTask(task.id)} /> : null}
+      {blocked ? <ConfirmDialog title="任务正在专注中" description="请先回到今日工作台完成或放弃当前番茄钟，再删除这个任务。" confirmLabel="知道了" onCancel={() => setBlocked(false)} onConfirm={() => setBlocked(false)} /> : null}
     </>
   );
 }
