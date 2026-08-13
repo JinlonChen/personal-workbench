@@ -13,7 +13,7 @@ function normalizeWorkspace(value: LegacyWorkspace): Workspace {
   const now = new Date().toISOString();
   const seed = createSeedWorkspace();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     profile: {
       id: value.profile?.id ?? "local-user",
       displayName: value.profile?.displayName?.trim() || seed.profile.displayName,
@@ -26,6 +26,7 @@ function normalizeWorkspace(value: LegacyWorkspace): Workspace {
     workEntries: Array.isArray(value.workEntries) ? value.workEntries : [],
     learningEntries: Array.isArray(value.learningEntries) ? value.learningEntries : [],
     dailyReviews: Array.isArray(value.dailyReviews) ? value.dailyReviews : [],
+    focusSessions: Array.isArray(value.focusSessions) ? value.focusSessions : [],
   };
 }
 
@@ -49,7 +50,7 @@ export class LocalWorkspaceRepository implements WorkspaceRepository {
 
   async save(workspace: Workspace): Promise<void> {
     try {
-      this.storage.setItem(STORAGE_KEY, JSON.stringify({ ...workspace, schemaVersion: 1 }));
+      this.storage.setItem(STORAGE_KEY, JSON.stringify({ ...workspace, schemaVersion: 2 }));
     } catch {
       throw new Error("保存失败，浏览器存储可能不可用或空间不足。");
     }

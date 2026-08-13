@@ -40,7 +40,8 @@ describe("LocalWorkspaceRepository", () => {
   it("seeds an empty store and persists updates", async () => {
     const repository = new LocalWorkspaceRepository(storage);
     const initial = await repository.load();
-    expect(initial.schemaVersion).toBe(1);
+    expect(initial.schemaVersion).toBe(2);
+    expect(initial.focusSessions).toEqual([]);
     expect(initial.tasks.length).toBeGreaterThan(0);
 
     initial.profile.displayName = "金龙";
@@ -62,10 +63,34 @@ describe("LocalWorkspaceRepository", () => {
     );
 
     const workspace = await new LocalWorkspaceRepository(storage).load();
-    expect(workspace.schemaVersion).toBe(1);
+    expect(workspace.schemaVersion).toBe(2);
     expect(workspace.profile.displayName).toBe("旧数据");
     expect(workspace.profile.id).toBe("local-user");
     expect(workspace.focusProjects).toEqual([]);
+    expect(workspace.focusSessions).toEqual([]);
+  });
+
+  it("preserves existing v1 records while adding the focus-session collection", async () => {
+    const seeded = {
+      profile: { displayName: "旧用户", timezone: "Asia/Shanghai" },
+      focusProjects: [{ id: "project-1" }],
+      tasks: [{ id: "task-1", title: "保留任务" }],
+      workEntries: [{ id: "work-1", title: "保留记录" }],
+      learningEntries: [{ id: "learn-1", title: "保留学习" }],
+      dailyReviews: [{ id: "review-1", reviewDate: "2026-08-13" }],
+      schemaVersion: 1,
+    };
+    storage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+
+    const workspace = await new LocalWorkspaceRepository(storage).load();
+
+    expect(workspace.schemaVersion).toBe(2);
+    expect(workspace.focusSessions).toEqual([]);
+    expect(workspace.focusProjects).toEqual(seeded.focusProjects);
+    expect(workspace.tasks).toEqual(seeded.tasks);
+    expect(workspace.workEntries).toEqual(seeded.workEntries);
+    expect(workspace.learningEntries).toEqual(seeded.learningEntries);
+    expect(workspace.dailyReviews).toEqual(seeded.dailyReviews);
   });
 
   it("reports corrupted stored data without overwriting it", async () => {
