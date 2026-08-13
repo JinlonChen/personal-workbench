@@ -5,7 +5,7 @@ import type { Workspace } from "@/domain/types";
 export function createSeedWorkspace(date = todayKey()): Workspace {
   const now = new Date().toISOString();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     profile: {
       id: "local-user",
       displayName: "朋友",
@@ -52,5 +52,6 @@ export function createSeedWorkspace(date = todayKey()): Workspace {
     workEntries: [],
     learningEntries: [],
     dailyReviews: [],
+    focusSessions: [],
   };
 }

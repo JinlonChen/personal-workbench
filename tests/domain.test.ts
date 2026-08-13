@@ -6,6 +6,8 @@ import {
   completionRate,
   filterLearningEntries,
   filterWorkEntries,
+  focusMinutesForTask,
+  focusSummaryForDate,
   reviewStreak,
   rollTask,
   tasksForDate,
@@ -28,7 +30,7 @@ const task = (overrides: Partial<WorkspaceTask>): WorkspaceTask => ({
 });
 
 const workspace: Workspace = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   profile: {
     id: "local-user",
     displayName: "金龙",
@@ -115,6 +117,12 @@ const workspace: Workspace = {
       updatedAt: now,
     },
   ],
+  focusSessions: [
+    { id: "focus-session-one", taskId: "one", taskTitle: "完成方案", focusDate: "2026-07-27", plannedMinutes: 15, completedAt: now, createdAt: now },
+    { id: "focus-session-two", taskId: "one", taskTitle: "完成方案", focusDate: "2026-07-27", plannedMinutes: 25, completedAt: now, createdAt: now },
+    { id: "focus-session-three", taskId: "one", taskTitle: "完成方案", focusDate: "2026-07-28", plannedMinutes: 15, completedAt: now, createdAt: now },
+    { id: "focus-session-four", taskId: "two", taskTitle: "复核数据", focusDate: "2026-07-27", plannedMinutes: 45, completedAt: now, createdAt: now },
+  ],
 };
 
 describe("date helpers", () => {
@@ -154,6 +162,12 @@ describe("workspace selectors", () => {
   it("counts consecutive reviews ending on the reference date", () => {
     expect(reviewStreak(workspace.dailyReviews, "2026-07-27")).toBe(2);
   });
+
+  it("summarizes completed focus sessions by date and task", () => {
+    expect(focusSummaryForDate(workspace.focusSessions, "2026-07-27")).toEqual({ count: 3, minutes: 85 });
+    expect(focusMinutesForTask(workspace.focusSessions, "one")).toBe(55);
+    expect(focusMinutesForTask(workspace.focusSessions, "missing")).toBe(0);
+  });
 });
 
 describe("exports", () => {
@@ -166,5 +180,8 @@ describe("exports", () => {
     expect(markdown).toContain("完成工作台");
     expect(markdown).toContain("## 重点关注");
     expect(markdown).toContain("新型破碎主机开发");
+    expect(markdown).toContain("## 专注记录");
+    expect(markdown).toContain("### 2026-07-27 · 85 分钟");
+    expect(markdown).toContain("- 完成方案 · 15 分钟");
   });
 });

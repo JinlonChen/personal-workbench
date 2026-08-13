@@ -13,6 +13,7 @@ import type {
   DailyReviewInput,
   FocusProject,
   FocusProjectInput,
+  FocusSession,
   LearningEntry,
   LearningEntryInput,
   Profile,
@@ -24,6 +25,7 @@ import type {
   WorkspaceTask,
 } from "@/domain/types";
 import { useAuth } from "./auth-provider";
+import { persistFocusSession } from "./focus-session-action";
 
 interface WorkspaceContextValue {
   workspace: Workspace;
@@ -48,6 +50,7 @@ interface WorkspaceContextValue {
   updateLearningEntry: (id: string, patch: LearningEntryInput) => Promise<void>;
   deleteLearningEntry: (id: string) => Promise<void>;
   upsertReview: (input: DailyReviewInput) => Promise<void>;
+  createFocusSession: (input: Omit<FocusSession, "createdAt">) => Promise<void>;
   updateProfile: (patch: Pick<Profile, "displayName" | "timezone">) => Promise<void>;
   resetWorkspace: () => Promise<void>;
 }
@@ -55,7 +58,7 @@ interface WorkspaceContextValue {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 function hasLocalData(workspace: Workspace) {
-  return workspace.focusProjects.length > 0 || workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0;
+  return workspace.focusProjects.length > 0 || workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0 || workspace.focusSessions.length > 0;
 }
 
 function MigrationDialog({ onUpload, onStartFresh }: { onUpload: () => void; onStartFresh: () => void }) {
@@ -233,6 +236,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       ...workspace,
       tasks: workspace.tasks.filter((task) => task.id !== id),
       workEntries: workspace.workEntries.map((entry) => entry.taskId === id ? { ...entry, taskId: null, updatedAt } : entry),
+      focusSessions: workspace.focusSessions.map((session) => session.taskId === id ? { ...session, taskId: null } : session),
     });
   }
 
@@ -287,6 +291,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     await replaceWorkspace({ ...workspace, dailyReviews: [review, ...workspace.dailyReviews.filter((item) => item.reviewDate !== input.reviewDate)] });
   }
 
+  async function createFocusSession(input: Omit<FocusSession, "createdAt">) {
+    if (!workspace) return;
+    await persistFocusSession(workspace, input, replaceWorkspace);
+  }
+
   async function updateProfile(patch: Pick<Profile, "displayName" | "timezone">) {
     if (!workspace) return;
     await replaceWorkspace({ ...workspace, profile: { ...workspace.profile, ...patch, updatedAt: new Date().toISOString() } });
@@ -328,7 +337,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createFocusProject, updateFocusProject, deleteFocusProject, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, updateProfile, resetWorkspace }}>
+    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createFocusProject, updateFocusProject, deleteFocusProject, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, createFocusSession, updateProfile, resetWorkspace }}>
       {children}
       {migrationPending ? <MigrationDialog onUpload={() => void migrateLocalData()} onStartFresh={() => void startFreshCloudWorkspace()} /> : null}
     </WorkspaceContext.Provider>

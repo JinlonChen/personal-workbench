@@ -7,6 +7,7 @@ import { formatDate, todayKey } from "@/domain/date";
 import { completionRate, tasksForDate } from "@/domain/selectors";
 import { useWorkspace } from "@/state/workspace-provider";
 import { TaskList } from "./tasks";
+import { PomodoroTimer } from "./pomodoro-timer";
 
 export function TodayView({ onNavigate }: { onNavigate: (view: "tasks" | "records" | "reviews") => void }) {
   const { workspace, saveStatus, syncMode } = useWorkspace();
@@ -23,10 +24,11 @@ export function TodayView({ onNavigate }: { onNavigate: (view: "tasks" | "record
         <div className="focus-content"><span>今日最重要</span>{focus.length ? focus.map((task) => <strong key={task.id}>{task.title}</strong>) : <strong>今天的关键事项已完成</strong>}</div>
         <button className="icon-button" type="button" aria-label="管理今日任务" onClick={() => onNavigate("tasks")}><ArrowRight size={18} /></button>
       </section>
+      <PomodoroTimer date={date} tasks={tasks} />
       <section className="content-section">
         <div className="section-heading"><div><h2>今日任务</h2><p>{tasks.filter((task) => task.status === "done").length} / {tasks.filter((task) => task.status !== "cancelled").length} 已完成</p></div><button className="text-button" type="button" onClick={() => onNavigate("tasks")}><Plus size={16} />添加任务</button></div>
         <div className="progress-track" aria-label={`今日完成度 ${rate}%`}><span style={{ width: `${rate}%` }} /></div>
-        <TaskList tasks={tasks} />
+        <TaskList tasks={tasks} focusSessions={workspace.focusSessions} />
       </section>
       <section className="content-section">
         <div className="section-heading"><div><h2>快速记录</h2><p>及时留下完成和收获，不依赖晚上回忆。</p></div></div>

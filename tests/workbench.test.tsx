@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import Home from "@/app/page";
+import { savePomodoro, startPomodoro } from "@/features/pomodoro-state";
 
 describe("workbench navigation", () => {
   beforeEach(() => {
@@ -159,5 +160,79 @@ describe("workbench navigation", () => {
     expect(screen.getByRole("button", { name: "导出 Markdown" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "清空本地数据" }));
     expect(screen.getByRole("dialog", { name: "确认清空数据" })).toBeInTheDocument();
+  });
+
+  it("starts a Pomodoro for today's unfinished task and abandons without saving", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    expect(screen.getByRole("option", { name: "整理一条工作记录" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "晚上用两分钟复盘" })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("专注任务"), "整理一条工作记录");
+    await user.click(screen.getByRole("button", { name: "开始专注" }));
+
+    expect(screen.getByRole("button", { name: "暂停" })).toBeInTheDocument();
+    const taskRow = screen.getByRole("heading", { name: "整理一条工作记录", level: 3 }).closest("article");
+    expect(taskRow).not.toBeNull();
+    expect(within(taskRow!).getByText("进行中")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "放弃" }));
+    expect(screen.getByRole("button", { name: "开始专注" })).toBeInTheDocument();
+    expect(screen.getByText("今日完成 0 个番茄 · 0 分钟")).toBeInTheDocument();
+  });
+
+  it("requires confirmation before a completed Pomodoro is counted", async () => {
+    const user = userEvent.setup();
+    const firstRender = render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    const option = screen.getByRole("option", { name: "整理一条工作记录" }) as HTMLOptionElement;
+    const expired = startPomodoro(
+      { id: option.value, title: "整理一条工作记录" },
+      15,
+      Date.now() - 16 * 60_000,
+    );
+    savePomodoro(localStorage, expired);
+    firstRender.unmount();
+    render(<Home />);
+
+    expect(await screen.findByRole("button", { name: "完成并计入" })).toBeInTheDocument();
+    expect(screen.getByText("今日完成 0 个番茄 · 0 分钟")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "完成并计入" }));
+    expect(await screen.findByText("今日完成 1 个番茄 · 15 分钟")).toBeInTheDocument();
+    const taskRow = screen.getByRole("heading", { name: "整理一条工作记录", level: 3 }).closest("article");
+    expect(within(taskRow!).getByText("15 分钟专注")).toBeInTheDocument();
+  });
+
+  it("blocks deletion while the selected task has an active Pomodoro", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.selectOptions(screen.getByLabelText("专注任务"), "整理一条工作记录");
+    await user.click(screen.getByRole("button", { name: "开始专注" }));
+    await user.click(screen.getByRole("button", { name: "任务" }));
+    await user.click(screen.getByRole("button", { name: "删除 整理一条工作记录" }));
+
+    expect(screen.getByRole("dialog", { name: "任务正在专注中" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "知道了" }));
+    expect(screen.getByRole("heading", { name: "整理一条工作记录", level: 3 })).toBeInTheDocument();
+  });
+
+  it("clears the active device timer when all workspace data is reset", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "开始专注" }));
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    await user.click(screen.getByRole("button", { name: "清空本地数据" }));
+    await user.click(screen.getByRole("button", { name: "清空全部数据" }));
+    await user.click(screen.getByRole("button", { name: "今日" }));
+
+    expect(screen.getByRole("button", { name: "开始专注" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "暂停" })).not.toBeInTheDocument();
   });
 });

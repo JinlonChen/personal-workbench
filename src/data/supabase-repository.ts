@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { WorkspaceRepository } from "./repository";
-import type { DailyReview, FocusProject, Profile, Workspace, WorkspaceTask } from "@/domain/types";
+import type { DailyReview, FocusProject, FocusSession, Profile, Workspace, WorkspaceTask } from "@/domain/types";
 
 export type ProfileRow = {
   id: string;
@@ -84,6 +84,17 @@ export type DailyReviewRow = {
   updated_at: string;
 };
 
+export type FocusSessionRow = {
+  id: string;
+  user_id: string;
+  task_id: string | null;
+  task_title: string;
+  focus_date: string;
+  planned_minutes: FocusSession["plannedMinutes"];
+  completed_at: string;
+  created_at: string;
+};
+
 export type SupabaseRows = {
   profile: ProfileRow;
   focusProjects: FocusProjectRow[];
@@ -91,6 +102,7 @@ export type SupabaseRows = {
   workEntries: WorkEntryRow[];
   learningEntries: LearningEntryRow[];
   dailyReviews: DailyReviewRow[];
+  focusSessions: FocusSessionRow[];
 };
 
 function profileToRow(profile: Profile, userId: string): ProfileRow {
@@ -174,12 +186,22 @@ export function workspaceToRows(workspace: Workspace, userId: string): SupabaseR
       created_at: review.createdAt,
       updated_at: review.updatedAt,
     })),
+    focusSessions: workspace.focusSessions.map((session) => ({
+      id: session.id,
+      user_id: userId,
+      task_id: session.taskId,
+      task_title: session.taskTitle,
+      focus_date: session.focusDate,
+      planned_minutes: session.plannedMinutes,
+      completed_at: session.completedAt,
+      created_at: session.createdAt,
+    })),
   };
 }
 
 export function rowsToWorkspace(rows: SupabaseRows): Workspace {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     profile: {
       id: rows.profile.id,
       displayName: rows.profile.display_name,
@@ -250,10 +272,19 @@ export function rowsToWorkspace(rows: SupabaseRows): Workspace {
       createdAt: review.created_at,
       updatedAt: review.updated_at,
     })),
+    focusSessions: rows.focusSessions.map((session) => ({
+      id: session.id,
+      taskId: session.task_id,
+      taskTitle: session.task_title,
+      focusDate: session.focus_date,
+      plannedMinutes: session.planned_minutes,
+      completedAt: session.completed_at,
+      createdAt: session.created_at,
+    })),
   };
 }
 
-type TableName = "focus_projects" | "tasks" | "work_entries" | "learning_entries" | "daily_reviews";
+type TableName = "focus_projects" | "tasks" | "work_entries" | "learning_entries" | "daily_reviews" | "focus_sessions";
 
 class CloudLoadError extends Error {
   constructor(message: string, readonly status?: number) {
@@ -277,16 +308,17 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
   }
 
   private async loadOnce(): Promise<Workspace> {
-    const [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult] = await Promise.all([
+    const [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult, focusSessionsResult] = await Promise.all([
       this.client.from("profiles").select("id, display_name, timezone, created_at, updated_at").eq("id", this.userId).maybeSingle(),
       this.client.from("focus_projects").select("id, user_id, name, platform_url, owner, tier, status, current_goal, risk, next_action, latest_conclusion, next_review_date, created_at, updated_at").eq("user_id", this.userId).order("next_review_date", { ascending: true }),
       this.client.from("tasks").select("id, user_id, title, description, task_date, priority, status, source, created_at, updated_at").eq("user_id", this.userId).order("task_date", { ascending: false }),
       this.client.from("work_entries").select("id, user_id, entry_date, title, content, result, task_id, tags, created_at, updated_at").eq("user_id", this.userId).order("entry_date", { ascending: false }),
       this.client.from("learning_entries").select("id, user_id, entry_date, title, content, source_url, key_points, next_action, tags, created_at, updated_at").eq("user_id", this.userId).order("entry_date", { ascending: false }),
       this.client.from("daily_reviews").select("id, user_id, review_date, completed_summary, main_gain, blockers, improvement, tomorrow_focus, mood, energy, notes, created_at, updated_at").eq("user_id", this.userId).order("review_date", { ascending: false }),
+      this.client.from("focus_sessions").select("id, user_id, task_id, task_title, focus_date, planned_minutes, completed_at, created_at").eq("user_id", this.userId).order("completed_at", { ascending: false }),
     ]);
 
-    const failedResult = [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult]
+    const failedResult = [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult, focusSessionsResult]
       .find((result) => result.error);
     if (failedResult?.error) {
       throw new CloudLoadError(
@@ -310,6 +342,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       workEntries: (workEntriesResult.data ?? []) as WorkEntryRow[],
       learningEntries: (learningEntriesResult.data ?? []) as LearningEntryRow[],
       dailyReviews: (reviewsResult.data ?? []) as DailyReviewRow[],
+      focusSessions: (focusSessionsResult.data ?? []) as FocusSessionRow[],
     });
   }
 
@@ -322,6 +355,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       await this.syncTable("work_entries", rows.workEntries);
       await this.syncTable("learning_entries", rows.learningEntries);
       await this.syncTable("daily_reviews", rows.dailyReviews);
+      await this.syncTable("focus_sessions", rows.focusSessions);
     } catch (reason) {
       if (reason instanceof Error && reason.message.startsWith("云端同步失败")) throw reason;
       throw new Error(`云端同步失败：${reason instanceof Error ? reason.message : "未知错误"}`);
@@ -335,6 +369,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       await this.deleteAll("learning_entries");
       await this.deleteAll("tasks");
       await this.deleteAll("focus_projects");
+      await this.deleteAll("focus_sessions");
     } catch (reason) {
       throw new Error(`云端清空失败：${reason instanceof Error ? reason.message : "未知错误"}`);
     }

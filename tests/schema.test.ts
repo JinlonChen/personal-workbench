@@ -7,8 +7,8 @@ const schemaPath = path.resolve(process.cwd(), "supabase/schema.sql");
 const schemaExists = existsSync(schemaPath);
 const schemaSource = schemaExists ? readFileSync(schemaPath, "utf8") : "";
 
-const tables = ["profiles", "focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews"] as const;
-const businessTables = ["focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews"] as const;
+const tables = ["profiles", "focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews", "focus_sessions"] as const;
+const businessTables = ["focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews", "focus_sessions"] as const;
 
 function normalizeSql(candidate: string) {
   return candidate.toLowerCase().replace(/\s+/g, " ").trim();
@@ -120,6 +120,7 @@ function assertDateIndexes(candidate: string) {
     work_entries: "entry_date",
     learning_entries: "entry_date",
     daily_reviews: "review_date",
+    focus_sessions: "focus_date",
   } as const;
 
   for (const [table, dateField] of Object.entries(dateFields)) {
@@ -184,6 +185,7 @@ function assertBoundConstraints(candidate: string) {
   const focusProjects = requireStatement(candidate, /^create table public\.focus_projects \(/, "focus_projects table");
   const tasks = requireStatement(candidate, /^create table public\.tasks \(/, "tasks table");
   const reviews = requireStatement(candidate, /^create table public\.daily_reviews \(/, "daily_reviews table");
+  const focusSessions = requireStatement(candidate, /^create table public\.focus_sessions \(/, "focus_sessions table");
 
   expect(focusProjects).toMatch(
     /\btier text not null default 'parallel' check \(tier in \('top', 'parallel', 'paused'\)\)/,
@@ -201,6 +203,8 @@ function assertBoundConstraints(candidate: string) {
   );
   expect(reviews).toMatch(/\benergy smallint not null default 3 check \(energy between 1 and 5\)/);
   expect(reviews).toMatch(/\bunique \(user_id, review_date\)/);
+  expect(focusSessions).toMatch(/\bplanned_minutes smallint not null check \(planned_minutes in \(15, 25, 45, 60\)\)/);
+  expect(focusSessions).toMatch(/\btask_id uuid references public\.tasks\(id\) on delete set null/);
 }
 
 function assertTaskReferenceOwnership(candidate: string) {

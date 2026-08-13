@@ -4,6 +4,7 @@ export type FocusProjectStatus = "on_track" | "attention" | "blocked";
 export type FocusProjectTier = "top" | "parallel" | "paused";
 export type Mood = "low" | "neutral" | "steady" | "good" | "great";
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
+export type PomodoroMinutes = 15 | 25 | 45 | 60;
 
 export interface Profile {
   id: string;
@@ -81,14 +82,25 @@ export interface DailyReview {
   updatedAt: string;
 }
 
+export interface FocusSession {
+  id: string;
+  taskId: string | null;
+  taskTitle: string;
+  focusDate: string;
+  plannedMinutes: PomodoroMinutes;
+  completedAt: string;
+  createdAt: string;
+}
+
 export interface Workspace {
-  schemaVersion: 1;
+  schemaVersion: 2;
   profile: Profile;
   focusProjects: FocusProject[];
   tasks: WorkspaceTask[];
   workEntries: WorkEntry[];
   learningEntries: LearningEntry[];
   dailyReviews: DailyReview[];
+  focusSessions: FocusSession[];
 }
 
 export type TaskInput = Pick<WorkspaceTask, "title" | "description" | "taskDate" | "priority" | "status">;

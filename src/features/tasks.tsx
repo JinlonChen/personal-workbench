@@ -5,9 +5,10 @@ import { type FormEvent, useState } from "react";
 
 import { ConfirmDialog, EmptyState, Modal, PageHeader, SaveIndicator } from "@/components/ui";
 import { formatDate, todayKey } from "@/domain/date";
-import { tasksForDate } from "@/domain/selectors";
-import type { TaskInput, TaskPriority, TaskStatus, WorkspaceTask } from "@/domain/types";
+import { focusMinutesForTask, tasksForDate } from "@/domain/selectors";
+import type { FocusSession, TaskInput, TaskPriority, TaskStatus, WorkspaceTask } from "@/domain/types";
 import { useWorkspace } from "@/state/workspace-provider";
+import { loadPomodoro } from "./pomodoro-state";
 
 const statusLabels: Record<TaskStatus, string> = {
   todo: "未开始",
@@ -60,10 +61,21 @@ function TaskForm({ task, date, onClose }: { task?: WorkspaceTask; date: string;
   );
 }
 
-function TaskRow({ task }: { task: WorkspaceTask }) {
+function TaskRow({ task, focusSessions = [] }: { task: WorkspaceTask; focusSessions?: FocusSession[] }) {
   const { updateTask, deleteTask, rollTaskToTomorrow } = useWorkspace();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const focusMinutes = focusMinutesForTask(focusSessions, task.id);
+
+  function requestDelete() {
+    const active = loadPomodoro(window.localStorage);
+    if (active?.taskId === task.id) {
+      setBlocked(true);
+      return;
+    }
+    setConfirming(true);
+  }
 
   return (
     <>
@@ -80,23 +92,25 @@ function TaskRow({ task }: { task: WorkspaceTask }) {
         <div className="task-copy">
           <div className="task-title-line"><h3>{task.title}</h3><span className={`badge priority-${task.priority}`}>{priorityLabels[task.priority]}</span><span className={`badge status-${task.status}`}>{statusLabels[task.status]}</span></div>
           {task.description ? <p>{task.description}</p> : null}
+          {focusMinutes > 0 ? <span className="task-focus-time">{focusMinutes} 分钟专注</span> : null}
         </div>
         <div className="row-actions">
           {task.status !== "done" && task.status !== "cancelled" ? <button className="icon-button" type="button" onClick={() => rollTaskToTomorrow(task.id)} aria-label={`顺延 ${task.title}`}><CalendarPlus size={17} /></button> : null}
           <button className="icon-button" type="button" onClick={() => setEditing(true)} aria-label={`编辑 ${task.title}`}><Pencil size={17} /></button>
           <button className="icon-button" type="button" onClick={() => updateTask(task.id, { status: "cancelled" })} aria-label={`取消 ${task.title}`}><XCircle size={17} /></button>
-          <button className="icon-button danger-text" type="button" onClick={() => setConfirming(true)} aria-label={`删除 ${task.title}`}><Trash2 size={17} /></button>
+          <button className="icon-button danger-text" type="button" onClick={requestDelete} aria-label={`删除 ${task.title}`}><Trash2 size={17} /></button>
         </div>
       </article>
       {editing ? <TaskForm task={task} date={task.taskDate} onClose={() => setEditing(false)} /> : null}
       {confirming ? <ConfirmDialog title="确认删除任务" description={`“${task.title}”将从本地记录中永久删除。`} confirmLabel="确认删除" onCancel={() => setConfirming(false)} onConfirm={() => deleteTask(task.id)} /> : null}
+      {blocked ? <ConfirmDialog title="任务正在专注中" description="请先回到今日工作台完成或放弃当前番茄钟，再删除这个任务。" confirmLabel="知道了" onCancel={() => setBlocked(false)} onConfirm={() => setBlocked(false)} /> : null}
     </>
   );
 }
 
-export function TaskList({ tasks }: { tasks: WorkspaceTask[] }) {
+export function TaskList({ tasks, focusSessions = [] }: { tasks: WorkspaceTask[]; focusSessions?: FocusSession[] }) {
   if (!tasks.length) return <EmptyState icon={<CheckCircle2 size={22} />} title="这一天还没有任务" description="添加一件真正需要推进的事。" />;
-  return <div className="task-list">{tasks.map((task) => <TaskRow key={task.id} task={task} />)}</div>;
+  return <div className="task-list">{tasks.map((task) => <TaskRow key={task.id} task={task} focusSessions={focusSessions} />)}</div>;
 }
 
 export function TasksView() {
@@ -117,7 +131,7 @@ export function TasksView() {
         <SaveIndicator status={saveStatus} mode={syncMode} />
       </div>
       <div className="section-heading"><div><h2>{date === currentDate ? "今天" : formatDate(date)}</h2><p>{visibleTasks.length} 项任务</p></div></div>
-      <TaskList tasks={visibleTasks} />
+      <TaskList tasks={visibleTasks} focusSessions={workspace.focusSessions} />
       {creating ? <TaskForm date={date} onClose={() => setCreating(false)} /> : null}
     </section>
   );

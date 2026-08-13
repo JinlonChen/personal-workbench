@@ -1,5 +1,5 @@
 import { nextDate } from "./date";
-import type { DailyReview, LearningEntry, RecordFilters, WorkEntry, WorkspaceTask } from "./types";
+import type { DailyReview, FocusSession, LearningEntry, RecordFilters, WorkEntry, WorkspaceTask } from "./types";
 
 export function tasksForDate(tasks: WorkspaceTask[], date: string): WorkspaceTask[] {
   return tasks
@@ -14,6 +14,20 @@ export function completionRate(tasks: WorkspaceTask[], date: string): number {
   const active = tasksForDate(tasks, date).filter((task) => task.status !== "cancelled");
   if (!active.length) return 0;
   return Math.round((active.filter((task) => task.status === "done").length / active.length) * 100);
+}
+
+export function focusSummaryForDate(sessions: FocusSession[], date: string) {
+  const matches = sessions.filter((session) => session.focusDate === date);
+  return {
+    count: matches.length,
+    minutes: matches.reduce((sum, session) => sum + session.plannedMinutes, 0),
+  };
+}
+
+export function focusMinutesForTask(sessions: FocusSession[], taskId: string): number {
+  return sessions
+    .filter((session) => session.taskId === taskId)
+    .reduce((sum, session) => sum + session.plannedMinutes, 0);
 }
 
 export function rollTask(task: WorkspaceTask, date: string, timestamp = new Date().toISOString()): WorkspaceTask {
