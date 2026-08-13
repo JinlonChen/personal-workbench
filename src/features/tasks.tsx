@@ -5,8 +5,8 @@ import { type FormEvent, useState } from "react";
 
 import { ConfirmDialog, EmptyState, Modal, PageHeader, SaveIndicator } from "@/components/ui";
 import { formatDate, todayKey } from "@/domain/date";
-import { tasksForDate } from "@/domain/selectors";
-import type { TaskInput, TaskPriority, TaskStatus, WorkspaceTask } from "@/domain/types";
+import { focusMinutesForTask, tasksForDate } from "@/domain/selectors";
+import type { FocusSession, TaskInput, TaskPriority, TaskStatus, WorkspaceTask } from "@/domain/types";
 import { useWorkspace } from "@/state/workspace-provider";
 
 const statusLabels: Record<TaskStatus, string> = {
@@ -60,10 +60,11 @@ function TaskForm({ task, date, onClose }: { task?: WorkspaceTask; date: string;
   );
 }
 
-function TaskRow({ task }: { task: WorkspaceTask }) {
+function TaskRow({ task, focusSessions = [] }: { task: WorkspaceTask; focusSessions?: FocusSession[] }) {
   const { updateTask, deleteTask, rollTaskToTomorrow } = useWorkspace();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const focusMinutes = focusMinutesForTask(focusSessions, task.id);
 
   return (
     <>
@@ -80,6 +81,7 @@ function TaskRow({ task }: { task: WorkspaceTask }) {
         <div className="task-copy">
           <div className="task-title-line"><h3>{task.title}</h3><span className={`badge priority-${task.priority}`}>{priorityLabels[task.priority]}</span><span className={`badge status-${task.status}`}>{statusLabels[task.status]}</span></div>
           {task.description ? <p>{task.description}</p> : null}
+          {focusMinutes > 0 ? <span className="task-focus-time">{focusMinutes} 分钟专注</span> : null}
         </div>
         <div className="row-actions">
           {task.status !== "done" && task.status !== "cancelled" ? <button className="icon-button" type="button" onClick={() => rollTaskToTomorrow(task.id)} aria-label={`顺延 ${task.title}`}><CalendarPlus size={17} /></button> : null}
@@ -94,9 +96,9 @@ function TaskRow({ task }: { task: WorkspaceTask }) {
   );
 }
 
-export function TaskList({ tasks }: { tasks: WorkspaceTask[] }) {
+export function TaskList({ tasks, focusSessions = [] }: { tasks: WorkspaceTask[]; focusSessions?: FocusSession[] }) {
   if (!tasks.length) return <EmptyState icon={<CheckCircle2 size={22} />} title="这一天还没有任务" description="添加一件真正需要推进的事。" />;
-  return <div className="task-list">{tasks.map((task) => <TaskRow key={task.id} task={task} />)}</div>;
+  return <div className="task-list">{tasks.map((task) => <TaskRow key={task.id} task={task} focusSessions={focusSessions} />)}</div>;
 }
 
 export function TasksView() {
@@ -117,7 +119,7 @@ export function TasksView() {
         <SaveIndicator status={saveStatus} mode={syncMode} />
       </div>
       <div className="section-heading"><div><h2>{date === currentDate ? "今天" : formatDate(date)}</h2><p>{visibleTasks.length} 项任务</p></div></div>
-      <TaskList tasks={visibleTasks} />
+      <TaskList tasks={visibleTasks} focusSessions={workspace.focusSessions} />
       {creating ? <TaskForm date={date} onClose={() => setCreating(false)} /> : null}
     </section>
   );
