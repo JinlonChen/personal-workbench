@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { SupabaseWorkspaceRepository } from "@/data/supabase-repository";
 import { getSupabaseClient } from "@/data/supabase-client";
@@ -94,12 +94,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const replaceWorkspace = useCallback(async (next: Workspace) => {
+    if (!repository || !localRepository) return;
+    setSaveStatus("saving");
+    setError(null);
+    workspaceRef.current = next;
+    setWorkspace(next);
+    try {
+      await localRepository.save(next);
+      if (syncMode === "cloud") await repository.save(next);
+      setSaveStatus("saved");
+    } catch (reason) {
+      setSaveStatus("error");
+      setError(reason instanceof Error ? reason.message : "保存失败，请检查网络后重试。");
+      throw reason;
+    }
+  }, [localRepository, repository, syncMode]);
+
   useEffect(() => {
     if (!workspace || !repository) return;
     const tasks = expireTasks(workspace.tasks, todayKey(workspace.profile.timezone));
     if (tasks.every((task, index) => task === workspace.tasks[index])) return;
     void replaceWorkspace({ ...workspace, tasks });
-  }, [repository, workspace]);
+  }, [repository, replaceWorkspace, workspace]);
 
   useEffect(() => {
     if (!localRepository) return;
@@ -149,23 +166,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setError(reason instanceof Error ? reason.message : "云端数据加载失败，请检查网络后重试。");
     });
   }, [authStatus, configured, localReady, localRepository, session]);
-
-  async function replaceWorkspace(next: Workspace) {
-    if (!repository || !localRepository) return;
-    setSaveStatus("saving");
-    setError(null);
-    workspaceRef.current = next;
-    setWorkspace(next);
-    try {
-      await localRepository.save(next);
-      if (syncMode === "cloud") await repository.save(next);
-      setSaveStatus("saved");
-    } catch (reason) {
-      setSaveStatus("error");
-      setError(reason instanceof Error ? reason.message : "保存失败，请检查网络后重试。");
-      throw reason;
-    }
-  }
 
   async function migrateLocalData() {
     if (!repository || !workspaceRef.current) return;
