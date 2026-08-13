@@ -11,6 +11,19 @@ export function exportJson(workspace: Workspace): string {
 }
 
 export function exportMarkdown(workspace: Workspace): string {
+  const focusByDate = new Map<string, typeof workspace.focusSessions>();
+  for (const session of workspace.focusSessions) {
+    const matches = focusByDate.get(session.focusDate) ?? [];
+    matches.push(session);
+    focusByDate.set(session.focusDate, matches);
+  }
+  const focusLines = [...focusByDate.entries()]
+    .sort(([left], [right]) => right.localeCompare(left))
+    .flatMap(([date, sessions]) => [
+      `### ${date} · ${sessions.reduce((sum, session) => sum + session.plannedMinutes, 0)} 分钟`,
+      ...sessions.map((session) => `- ${session.taskTitle} · ${session.plannedMinutes} 分钟`),
+      "",
+    ]);
   const lines = [
     "# 一页 · 个人工作台导出",
     "",
@@ -30,6 +43,8 @@ export function exportMarkdown(workspace: Workspace): string {
     "## 任务",
     ...workspace.tasks.map((task) => `- [${task.status === "done" ? "x" : " "}] ${task.taskDate} · ${task.title}`),
     "",
+    "## 专注记录",
+    ...focusLines,
     "## 工作记录",
     ...workspace.workEntries.flatMap((entry) => [
       `### ${entry.entryDate} · ${entry.title}`,
