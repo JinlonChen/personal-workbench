@@ -108,7 +108,8 @@ export interface Workspace {
   focusSessions: FocusSession[];
 }
 
-export type TaskInput = Pick<WorkspaceTask, "title" | "description" | "taskDate" | "placement" | "backlogKind" | "originalTaskDate" | "priority" | "status">;
+export type TaskInput = Pick<WorkspaceTask, "title" | "description" | "taskDate" | "priority" | "status">
+  & Partial<Pick<WorkspaceTask, "placement" | "backlogKind" | "originalTaskDate">>;
 export type FocusProjectInput = Omit<FocusProject, "id" | "createdAt" | "updatedAt">;
 export type WorkEntryInput = Pick<WorkEntry, "entryDate" | "title" | "content" | "result" | "taskId" | "tags">;
 export type LearningEntryInput = Pick<
