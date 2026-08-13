@@ -21,6 +21,7 @@ test-results/
 # Local OS/editor files
 .DS_Store
 .superpowers/
+.worktrees/
 .idea/
 .vscode/
 
