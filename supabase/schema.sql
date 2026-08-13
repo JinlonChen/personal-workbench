@@ -31,6 +31,9 @@ create table public.tasks (
   title text not null,
   description text not null default '',
   task_date date not null,
+  placement text not null default 'scheduled' check (placement in ('scheduled', 'backlog')),
+  backlog_kind text check (backlog_kind in ('unscheduled', 'unexecuted')),
+  original_task_date date,
   priority text not null default 'medium' check (priority in ('high', 'medium', 'low')),
   status text not null default 'todo' check (status in ('todo', 'doing', 'done', 'cancelled')),
   source text not null default 'manual' check (source in ('manual', 'work_entry')),
@@ -136,6 +139,7 @@ before update on public.focus_sessions
 for each row execute function public.set_updated_at();
 
 create index tasks_user_date_idx on public.tasks (user_id, task_date);
+create index tasks_user_placement_date_idx on public.tasks (user_id, placement, task_date);
 create index focus_projects_user_date_idx on public.focus_projects (user_id, next_review_date);
 create index work_entries_user_date_idx on public.work_entries (user_id, entry_date);
 create index learning_entries_user_date_idx on public.learning_entries (user_id, entry_date);

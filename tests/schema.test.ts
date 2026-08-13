@@ -198,6 +198,9 @@ function assertBoundConstraints(candidate: string) {
     /\bstatus text not null default 'todo' check \(status in \('todo', 'doing', 'done', 'cancelled'\)\)/,
   );
   expect(tasks).toMatch(/\bsource text not null default 'manual' check \(source in \('manual', 'work_entry'\)\)/);
+  expect(tasks).toMatch(/\bplacement text not null default 'scheduled' check \(placement in \('scheduled', 'backlog'\)\)/);
+  expect(tasks).toMatch(/\bbacklog_kind text check \(backlog_kind in \('unscheduled', 'unexecuted'\)\)/);
+  expect(tasks).toMatch(/\boriginal_task_date date/);
   expect(reviews).toMatch(
     /\bmood text not null default 'neutral' check \(mood in \('low', 'neutral', 'steady', 'good', 'great'\)\)/,
   );

@@ -25,12 +25,24 @@ describe("Supabase workspace mapping", () => {
       },
     ];
     const rows = workspaceToRows(workspace, "user-1");
+    workspace.tasks[0] = {
+      ...workspace.tasks[0],
+      placement: "backlog",
+      backlogKind: "unexecuted",
+      originalTaskDate: "2026-07-27",
+    };
+    const backlogRows = workspaceToRows(workspace, "user-1");
 
     expect(rows.profile).toMatchObject({ id: "user-1", display_name: "朋友" });
     expect(rows.tasks[0]).toMatchObject({
       user_id: "user-1",
       title: "完成今天最重要的一件事",
       task_date: "2026-07-28",
+    });
+    expect(backlogRows.tasks[0]).toMatchObject({
+      placement: "backlog",
+      backlog_kind: "unexecuted",
+      original_task_date: "2026-07-27",
     });
     expect(rows.focusProjects[0]).toMatchObject({
       user_id: "user-1",
@@ -71,6 +83,12 @@ describe("Supabase workspace mapping", () => {
         updatedAt: "2026-07-28T08:00:00.000Z",
       },
     ];
+    workspace.tasks[0] = {
+      ...workspace.tasks[0],
+      placement: "backlog",
+      backlogKind: "unexecuted",
+      originalTaskDate: "2026-07-27",
+    };
     const rows = workspaceToRows(workspace, "user-1");
     const restored = rowsToWorkspace(rows);
 

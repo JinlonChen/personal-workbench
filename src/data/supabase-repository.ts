@@ -17,6 +17,9 @@ export type TaskRow = {
   title: string;
   description: string;
   task_date: string;
+  placement: WorkspaceTask["placement"] | null;
+  backlog_kind: Exclude<WorkspaceTask["backlogKind"], null> | null;
+  original_task_date: string | null;
   priority: WorkspaceTask["priority"];
   status: WorkspaceTask["status"];
   source: WorkspaceTask["source"];
@@ -140,6 +143,9 @@ export function workspaceToRows(workspace: Workspace, userId: string): SupabaseR
       title: task.title,
       description: task.description,
       task_date: task.taskDate,
+      placement: task.placement,
+      backlog_kind: task.backlogKind,
+      original_task_date: task.originalTaskDate,
       priority: task.priority,
       status: task.status,
       source: task.source,
@@ -229,6 +235,9 @@ export function rowsToWorkspace(rows: SupabaseRows): Workspace {
       title: task.title,
       description: task.description,
       taskDate: task.task_date,
+      placement: task.placement === "backlog" ? "backlog" : "scheduled",
+      backlogKind: task.backlog_kind === "unscheduled" || task.backlog_kind === "unexecuted" ? task.backlog_kind : null,
+      originalTaskDate: task.original_task_date ?? null,
       priority: task.priority,
       status: task.status,
       source: task.source,
@@ -311,7 +320,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     const [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult, focusSessionsResult] = await Promise.all([
       this.client.from("profiles").select("id, display_name, timezone, created_at, updated_at").eq("id", this.userId).maybeSingle(),
       this.client.from("focus_projects").select("id, user_id, name, platform_url, owner, tier, status, current_goal, risk, next_action, latest_conclusion, next_review_date, created_at, updated_at").eq("user_id", this.userId).order("next_review_date", { ascending: true }),
-      this.client.from("tasks").select("id, user_id, title, description, task_date, priority, status, source, created_at, updated_at").eq("user_id", this.userId).order("task_date", { ascending: false }),
+      this.client.from("tasks").select("id, user_id, title, description, task_date, placement, backlog_kind, original_task_date, priority, status, source, created_at, updated_at").eq("user_id", this.userId).order("task_date", { ascending: false }),
       this.client.from("work_entries").select("id, user_id, entry_date, title, content, result, task_id, tags, created_at, updated_at").eq("user_id", this.userId).order("entry_date", { ascending: false }),
       this.client.from("learning_entries").select("id, user_id, entry_date, title, content, source_url, key_points, next_action, tags, created_at, updated_at").eq("user_id", this.userId).order("entry_date", { ascending: false }),
       this.client.from("daily_reviews").select("id, user_id, review_date, completed_summary, main_gain, blockers, improvement, tomorrow_focus, mood, energy, notes, created_at, updated_at").eq("user_id", this.userId).order("review_date", { ascending: false }),
