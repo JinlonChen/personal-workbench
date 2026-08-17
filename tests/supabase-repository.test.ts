@@ -158,4 +158,44 @@ describe("Supabase workspace mapping", () => {
     expect(from).toHaveBeenCalledTimes(18);
     expect(workspace.profile.id).toBe("user-1");
   });
+
+  it("serializes concurrent workspace saves so the newest snapshot is written last", async () => {
+    const first = createSeedWorkspace("2026-08-17");
+    const second = createSeedWorkspace("2026-08-17");
+    first.profile.displayName = "first";
+    second.profile.displayName = "second";
+
+    let releaseFirstProfile!: () => void;
+    const firstProfileGate = new Promise<void>((resolve) => { releaseFirstProfile = resolve; });
+    const profileStarts: string[] = [];
+    const success = { data: [], error: null, status: 200 };
+    const from = vi.fn((table: string) => {
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => Promise.resolve(success)),
+        delete: vi.fn(() => query),
+        in: vi.fn(() => Promise.resolve(success)),
+        upsert: vi.fn((rows: Record<string, unknown> | Array<Record<string, unknown>>) => {
+          if (table !== "profiles" || Array.isArray(rows)) return Promise.resolve(success);
+          const name = String(rows.display_name);
+          profileStarts.push(name);
+          return name === "first" ? firstProfileGate.then(() => success) : Promise.resolve(success);
+        }),
+      };
+      return query;
+    });
+    const client = { from } as unknown as SupabaseClient;
+    const repository = new SupabaseWorkspaceRepository(client, "user-1");
+
+    const firstSave = repository.save(first);
+    const secondSave = repository.save(second);
+    await Promise.resolve();
+    await Promise.resolve();
+    const startsBeforeFirstFinished = [...profileStarts];
+    releaseFirstProfile();
+    await Promise.all([firstSave, secondSave]);
+
+    expect(startsBeforeFirstFinished).toEqual(["first"]);
+    expect(profileStarts).toEqual(["first", "second"]);
+  });
 });

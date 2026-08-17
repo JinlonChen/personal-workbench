@@ -348,6 +348,8 @@ class CloudLoadError extends Error {
 }
 
 export class SupabaseWorkspaceRepository implements WorkspaceRepository {
+  private saveQueue: Promise<void> = Promise.resolve();
+
   constructor(private readonly client: SupabaseClient, private readonly userId: string) {}
 
   async load(): Promise<Workspace> {
@@ -404,7 +406,16 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     });
   }
 
-  async save(workspace: Workspace): Promise<void> {
+  save(workspace: Workspace): Promise<void> {
+    const pending = this.saveQueue.then(
+      () => this.saveSnapshot(workspace),
+      () => this.saveSnapshot(workspace),
+    );
+    this.saveQueue = pending.catch(() => undefined);
+    return pending;
+  }
+
+  private async saveSnapshot(workspace: Workspace): Promise<void> {
     const rows = workspaceToRows(workspace, this.userId);
     try {
       await this.assertSuccess(this.client.from("profiles").upsert(rows.profile, { onConflict: "id" }));
