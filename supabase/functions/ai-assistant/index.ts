@@ -145,6 +145,132 @@ function validAction(value: unknown): boolean {
   }
 }
 
+function invalidField(
+  errors: string[],
+  path: string,
+  value: unknown,
+  validator: (field: unknown) => boolean,
+  code: string,
+): void {
+  if (!validator(value)) errors.push(`${path}:${code}`);
+}
+
+export function getModelResponseValidationErrors(value: unknown): string[] {
+  if (!isRecord(value)) return ["response:not_object"];
+  if (value.kind === "answer") {
+    const errors: string[] = [];
+    invalidField(errors, "answer", value.answer, (field) => validText(field, 4000, true), "invalid_text");
+    if (!Array.isArray(value.references)) errors.push("references:not_array");
+    else {
+      if (value.references.length > 10) errors.push("references:too_many");
+      value.references.forEach((reference, index) => {
+        invalidField(errors, `references[${index}]`, reference, (field) => validText(field, 80, true), "invalid_text");
+      });
+    }
+    return errors;
+  }
+  if (value.kind === "clarification") {
+    return validText(value.question, 500, true) ? [] : ["question:invalid_text"];
+  }
+  if (value.kind !== "draft_actions") {
+    const safeKind = typeof value.kind === "string" && /^[a-z_]{1,40}$/.test(value.kind)
+      ? value.kind
+      : typeof value.kind;
+    const safeKeys = Object.keys(value).filter((key) => /^[A-Za-z_]{1,40}$/.test(key)).sort();
+    const dataKeys = isRecord(value.data)
+      ? Object.keys(value.data).filter((key) => /^[A-Za-z_]{1,40}$/.test(key)).sort()
+      : [];
+    return [
+      `kind:unsupported:${safeKind}`,
+      `keys:${safeKeys.join(",") || "none"}`,
+      `data_keys:${dataKeys.join(",") || "none"}`,
+    ];
+  }
+
+  const errors: string[] = [];
+  invalidField(errors, "summary", value.summary, (field) => validText(field, 500, true), "invalid_text");
+  if (!Array.isArray(value.actions)) return [...errors, "actions:not_array"];
+  if (value.actions.length < 1) errors.push("actions:empty");
+  if (value.actions.length > 5) errors.push("actions:too_many");
+
+  value.actions.forEach((action, index) => {
+    const path = `actions[${index}]`;
+    if (!isRecord(action)) {
+      errors.push(`${path}:not_object`);
+      return;
+    }
+    if (typeof action.type !== "string" || !allowedActions.has(action.type)) {
+      errors.push(`${path}.type:unsupported`);
+      return;
+    }
+    if (!isRecord(action.data)) {
+      errors.push(`${path}.data:not_object`);
+      return;
+    }
+    const data = action.data;
+    const text = (field: string, max: number, required = false) => invalidField(
+      errors, `${path}.data.${field}`, data[field], (value) => validText(value, max, required), "invalid_text",
+    );
+    const date = (field: string, required = true) => invalidField(
+      errors, `${path}.data.${field}`, data[field], (value) => validDate(value, required), "invalid_date",
+    );
+    const choice = (field: string, allowed: readonly string[]) => invalidField(
+      errors, `${path}.data.${field}`, data[field], (value) => validChoice(value, allowed), "invalid_choice",
+    );
+
+    switch (action.type) {
+      case "create_task":
+      case "create_backlog_task":
+        text("title", 200, true);
+        text("description", 4000);
+        date("taskDate");
+        choice("priority", ["high", "medium", "low"]);
+        break;
+      case "create_recurring_plan":
+        text("title", 200, true);
+        text("description", 4000);
+        choice("category", ["work", "life"]);
+        date("startDate");
+        invalidField(errors, `${path}.data.interval`, data.interval, (value) => Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 365, "invalid_integer");
+        choice("unit", ["day", "week", "month", "quarter", "year"]);
+        choice("mode", ["fixed", "after_completion"]);
+        choice("missedPolicy", ["catch_up_all", "latest_only"]);
+        choice("priority", ["high", "medium", "low"]);
+        date("endDate", false);
+        break;
+      case "create_focus_project":
+        text("name", 200, true);
+        text("platformUrl", 1000);
+        text("owner", 200);
+        choice("tier", ["top", "parallel", "paused"]);
+        choice("status", ["on_track", "attention", "blocked"]);
+        text("currentGoal", 4000);
+        text("risk", 4000);
+        text("nextAction", 4000);
+        text("latestConclusion", 4000);
+        date("nextReviewDate");
+        break;
+      case "create_work_entry":
+        date("entryDate");
+        text("title", 200, true);
+        text("content", 4000);
+        text("result", 4000);
+        invalidField(errors, `${path}.data.tags`, data.tags, validTags, "invalid_tags");
+        break;
+      case "create_learning_entry":
+        date("entryDate");
+        text("title", 200, true);
+        text("content", 4000);
+        text("sourceUrl", 1000);
+        text("keyPoints", 4000);
+        text("nextAction", 4000);
+        invalidField(errors, `${path}.data.tags`, data.tags, validTags, "invalid_tags");
+        break;
+    }
+  });
+  return errors;
+}
+
 function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   const allowed = new Set(keys);
   return Object.keys(value).every((key) => allowed.has(key)) && keys.every((key) => key in value);
@@ -241,6 +367,17 @@ export function validateModelResponse(value: unknown): boolean {
   return value.actions.every(validAction);
 }
 
+export function normalizeModelResponse(value: unknown): unknown {
+  if (!isRecord(value) || typeof value.kind !== "string" || !allowedActions.has(value.kind) || !isRecord(value.data)) {
+    return value;
+  }
+  return {
+    kind: "draft_actions",
+    summary: "待确认新增 1 项内容",
+    actions: [{ type: value.kind, data: value.data }],
+  };
+}
+
 function removeCodeFence(value: string): string {
   return value.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 }
@@ -307,8 +444,12 @@ export async function handleRequest(request: Request): Promise<Response> {
     } catch {
       return error("AI_INVALID_RESPONSE", "模型返回内容无法解析。", 502);
     }
-    if (!validateModelResponse(result)) return error("AI_INVALID_RESPONSE", "模型返回了不支持的操作。", 502);
-    return json(result);
+    const normalizedResult = normalizeModelResponse(result);
+    if (!validateModelResponse(normalizedResult)) {
+      console.error("AI response validation failed", getModelResponseValidationErrors(normalizedResult));
+      return error("AI_INVALID_RESPONSE", "模型返回了不支持的操作。", 502);
+    }
+    return json(normalizedResult);
   } catch (reason) {
     console.error("AI assistant function failed", reason);
     return error("INTERNAL_ERROR", "AI 服务暂时不可用，请稍后重试。", 500);
