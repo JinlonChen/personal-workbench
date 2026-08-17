@@ -5,7 +5,6 @@ import {
   CheckSquare2,
   NotebookPen,
   Settings,
-  Sparkles,
   SunMedium,
   Target,
   RefreshCcw,
@@ -75,7 +74,7 @@ export function AppShell() {
     <div className="app-shell">
       <header className="mobile-header">
         <div>
-          <span className="eyebrow">一页</span>
+          <span className="eyebrow">龍序</span>
           <strong>{formatDate(date)}</strong>
         </div>
         <span className={`save-indicator save-${saveStatus}`}>{saveStatus === "saving" ? "保存中" : syncMode === "cloud" ? "云端同步" : "本地模式"}</span>
@@ -83,8 +82,8 @@ export function AppShell() {
 
       <nav className="primary-nav" aria-label="主要导航">
         <div className="brand-lockup">
-          <span className="brand-mark"><Sparkles size={18} /></span>
-          <div><strong>一页</strong><span>个人工作台</span></div>
+          <span className="brand-mark" role="img" aria-label="龍字标识">龍</span>
+          <div><strong>龍序</strong><span>日日自新，事事有序</span></div>
         </div>
         <div className="nav-date"><span>{formatDate(date)}</span><small>把今天写清楚</small></div>
         <div className="nav-items">

@@ -26,7 +26,7 @@ export function exportMarkdown(workspace: Workspace): string {
       "",
     ]);
   const lines = [
-    "# 一页 · 个人工作台导出",
+    "# 龍序 · 个人工作台导出",
     "",
     `用户：${workspace.profile.displayName}`,
     `时区：${workspace.profile.timezone}`,

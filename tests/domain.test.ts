@@ -202,7 +202,7 @@ describe("workspace selectors", () => {
 describe("exports", () => {
   it("exports readable Markdown with all record groups", () => {
     const markdown = exportMarkdown(workspace);
-    expect(markdown).toContain("# 一页 · 个人工作台导出");
+    expect(markdown).toContain("# 龍序 · 个人工作台导出");
     expect(markdown).toContain("完成方案");
     expect(markdown).toContain("完成登录流程");
     expect(markdown).toContain("理解 RLS 策略");

@@ -7,5 +7,8 @@ describe("personal workbench", () => {
   it("renders the personal workbench", async () => {
     render(<Home />);
     expect(await screen.findByRole("heading", { name: "今日工作台" })).toBeInTheDocument();
+    expect(screen.getAllByText("龍序", { exact: true })).toHaveLength(2);
+    expect(screen.getByText("日日自新，事事有序", { exact: true })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "龍字标识" })).toBeInTheDocument();
   });
 });
