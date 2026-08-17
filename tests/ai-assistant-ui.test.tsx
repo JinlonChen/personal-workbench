@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -49,6 +49,21 @@ describe("AI assistant panel", () => {
     expect(screen.queryByRole("dialog", { name: "龍序 AI 助手" })).not.toBeInTheDocument();
   });
 
+  it("clears the conversation when the panel closes", async () => {
+    mocks.requestAssistant.mockResolvedValue({ kind: "answer", answer: "本周有三个任务。", references: [] });
+    const user = userEvent.setup();
+    render(<Assistant />);
+    await user.click(screen.getByRole("button", { name: "打开 AI 助手" }));
+    await user.type(screen.getByLabelText("给 AI 助手发送消息"), "我本周有什么任务？");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    expect(await screen.findByText("本周有三个任务。")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "关闭 AI 助手" }));
+    await user.click(screen.getByRole("button", { name: "打开 AI 助手" }));
+    expect(screen.queryByText("本周有三个任务。")).not.toBeInTheDocument();
+    expect(screen.getByText("有什么需要整理的，直接告诉我。")).toBeInTheDocument();
+  });
+
   it("asks local-mode users to sign in", async () => {
     mocks.auth.status = "signed_out";
     mocks.auth.session = null;
@@ -87,9 +102,48 @@ describe("AI assistant panel", () => {
     expect(await screen.findByText("待确认新增")).toBeInTheDocument();
     expect(screen.getByText("跟踪颚破项目")).toBeInTheDocument();
     expect(mocks.createTask).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("给 AI 助手发送消息")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "发送" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "确认添加" }));
     await waitFor(() => expect(mocks.createTask).toHaveBeenCalledTimes(1));
     expect(screen.getByText("已添加并同步")).toBeInTheDocument();
+    expect(screen.getByLabelText("给 AI 助手发送消息")).toBeEnabled();
+  });
+
+  it("does not let an old save mark a newer draft as saved after close", async () => {
+    mocks.requestAssistant
+      .mockResolvedValueOnce({
+        kind: "draft_actions",
+        summary: "准备新增旧任务",
+        actions: [{ type: "create_task", data: { title: "旧草稿", description: "", taskDate: "2026-08-17", priority: "medium" } }],
+      })
+      .mockResolvedValueOnce({
+        kind: "draft_actions",
+        summary: "准备新增新任务",
+        actions: [{ type: "create_task", data: { title: "新草稿", description: "", taskDate: "2026-08-18", priority: "medium" } }],
+      });
+    let finishOldSave!: () => void;
+    mocks.createTask.mockImplementationOnce(() => new Promise<void>((resolve) => { finishOldSave = resolve; }));
+    const user = userEvent.setup();
+    render(<Assistant />);
+
+    await user.click(screen.getByRole("button", { name: "打开 AI 助手" }));
+    await user.type(screen.getByLabelText("给 AI 助手发送消息"), "新增旧任务");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    expect(await screen.findByText("旧草稿")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "确认添加" }));
+    await waitFor(() => expect(mocks.createTask).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "关闭 AI 助手" }));
+    await user.click(screen.getByRole("button", { name: "打开 AI 助手" }));
+    await user.type(screen.getByLabelText("给 AI 助手发送消息"), "新增新任务");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    expect(await screen.findByText("新草稿")).toBeInTheDocument();
+
+    await act(async () => finishOldSave());
+    expect(screen.getByText("待确认新增")).toBeInTheDocument();
+    expect(screen.queryByText("已添加并同步")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "确认添加" })).toBeEnabled();
   });
 
   it("keeps the input after a request failure", async () => {

@@ -20,6 +20,7 @@ interface AssistantMessage {
 }
 
 interface DraftState {
+  id: number;
   response: Extract<AssistantResponse, { kind: "draft_actions" }>;
   completedCount: number;
   status: "pending" | "saving" | "saved";
@@ -69,7 +70,10 @@ export function Assistant() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sequence = useRef(0);
+  const draftSequence = useRef(0);
+  const requestGeneration = useRef(0);
   const signedIn = authStatus === "signed_in" && Boolean(session);
+  const draftBlocksComposer = draft?.status === "pending" || draft?.status === "saving";
 
   const nextMessage = (role: AssistantMessage["role"], text: string, references?: string[]): AssistantMessage => ({
     id: ++sequence.current,
@@ -80,31 +84,46 @@ export function Assistant() {
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (loading || !signedIn || !input.trim()) return;
+    if (loading || draftBlocksComposer || !signedIn || !input.trim()) return;
     const prompt = input.trim();
+    const generation = requestGeneration.current;
     setError(null);
     setMessages((current) => [...current, nextMessage("user", prompt)]);
     setLoading(true);
     try {
       const response = await requestAssistant(prompt, buildAssistantContext(workspace));
+      if (generation !== requestGeneration.current) return;
       if (response.kind === "answer") {
         setMessages((current) => [...current, nextMessage("assistant", response.answer, response.references)]);
       } else if (response.kind === "clarification") {
         setMessages((current) => [...current, nextMessage("assistant", response.question)]);
       } else {
-        setDraft({ response, completedCount: 0, status: "pending", error: null });
+        setDraft({ id: ++draftSequence.current, response, completedCount: 0, status: "pending", error: null });
       }
       setInput("");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AI 服务暂时不可用，请稍后重试。");
+      if (generation === requestGeneration.current) {
+        setError(reason instanceof Error ? reason.message : "AI 服务暂时不可用，请稍后重试。");
+      }
     } finally {
-      setLoading(false);
+      if (generation === requestGeneration.current) setLoading(false);
     }
+  }
+
+  function closeAssistant() {
+    requestGeneration.current += 1;
+    setOpen(false);
+    setInput("");
+    setMessages([]);
+    setDraft(null);
+    setLoading(false);
+    setError(null);
   }
 
   async function confirmDraft() {
     if (!draft || draft.status === "saving" || draft.status === "saved") return;
-    setDraft((current) => current ? { ...current, status: "saving", error: null } : current);
+    const draftId = draft.id;
+    setDraft((current) => current?.id === draftId ? { ...current, status: "saving", error: null } : current);
     let completedCount = draft.completedCount;
     try {
       for (let index = completedCount; index < draft.response.actions.length; index += 1) {
@@ -116,11 +135,11 @@ export function Assistant() {
           createLearningEntry,
         });
         completedCount = index + 1;
-        setDraft((current) => current ? { ...current, completedCount } : current);
+        setDraft((current) => current?.id === draftId ? { ...current, completedCount } : current);
       }
-      setDraft((current) => current ? { ...current, completedCount, status: "saved", error: null } : current);
+      setDraft((current) => current?.id === draftId ? { ...current, completedCount, status: "saved", error: null } : current);
     } catch (reason) {
-      setDraft((current) => current ? {
+      setDraft((current) => current?.id === draftId ? {
         ...current,
         completedCount,
         status: "pending",
@@ -143,14 +162,14 @@ export function Assistant() {
 
       {open ? (
         <>
-          <div className="assistant-backdrop" role="presentation" onClick={() => setOpen(false)} />
+          <div className="assistant-backdrop" role="presentation" onClick={closeAssistant} />
           <section className="assistant-panel" role="dialog" aria-modal="true" aria-label="龍序 AI 助手">
             <header className="assistant-header">
               <div>
                 <span>龍序</span>
                 <h2 id="assistant-title">AI 助手</h2>
               </div>
-              <button className="icon-button" type="button" aria-label="关闭 AI 助手" title="关闭" onClick={() => setOpen(false)}>
+              <button className="icon-button" type="button" aria-label="关闭 AI 助手" title="关闭" onClick={closeAssistant}>
                 <X size={19} aria-hidden="true" />
               </button>
             </header>
@@ -210,12 +229,13 @@ export function Assistant() {
                   placeholder="输入内容"
                   rows={3}
                   value={input}
+                  disabled={loading || draftBlocksComposer}
                   onChange={(event) => setInput(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) event.currentTarget.form?.requestSubmit();
                   }}
                 />
-                <button className="assistant-send" type="submit" aria-label="发送" title="发送" disabled={loading || !input.trim()}>
+                <button className="assistant-send" type="submit" aria-label="发送" title="发送" disabled={loading || draftBlocksComposer || !input.trim()}>
                   <Send size={18} aria-hidden="true" />
                 </button>
               </form>

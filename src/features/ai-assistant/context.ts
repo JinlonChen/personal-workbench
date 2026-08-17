@@ -10,7 +10,6 @@ export interface AssistantContext {
   };
   tasks: Array<{
     title: string;
-    description: string;
     taskDate: string;
     placement: "scheduled" | "backlog";
     backlogKind: "unscheduled" | "unexecuted" | null;
@@ -29,24 +28,13 @@ export interface AssistantContext {
   }>;
   recurringPlans: Array<{
     title: string;
-    description: string;
-    category: "work" | "life";
-    startDate: string;
     interval: number;
     unit: "day" | "week" | "month" | "quarter" | "year";
-    mode: "fixed" | "after_completion";
     status: "active" | "paused" | "terminated";
     nextDueDate: string | null;
   }>;
-  workEntries: Array<{ entryDate: string; title: string; content: string; result: string; tags: string[] }>;
-  learningEntries: Array<{
-    entryDate: string;
-    title: string;
-    content: string;
-    keyPoints: string;
-    nextAction: string;
-    tags: string[];
-  }>;
+  workEntries: Array<{ entryDate: string; title: string; summary: string }>;
+  learningEntries: Array<{ entryDate: string; title: string; summary: string }>;
 }
 
 function utcDate(date: string): Date {
@@ -85,6 +73,10 @@ function truncate(value: string, limit = 240): string {
   return value.slice(0, limit);
 }
 
+function summary(...candidates: string[]): string {
+  return truncate(candidates.find((value) => value.trim())?.trim() ?? "");
+}
+
 export function buildAssistantContext(
   workspace: Workspace,
   today = todayKey(workspace.profile.timezone),
@@ -95,7 +87,6 @@ export function buildAssistantContext(
     periods: periods(today),
     tasks: workspace.tasks.slice(0, 200).map((task) => ({
       title: task.title,
-      description: truncate(task.description),
       taskDate: task.taskDate,
       placement: task.placement,
       backlogKind: task.backlogKind,
@@ -114,29 +105,20 @@ export function buildAssistantContext(
     })),
     recurringPlans: workspace.recurringPlans.slice(0, 50).map((plan) => ({
       title: plan.title,
-      description: truncate(plan.description),
-      category: plan.category,
-      startDate: plan.startDate,
       interval: plan.interval,
       unit: plan.unit,
-      mode: plan.mode,
       status: plan.status,
       nextDueDate: plan.nextDueDate,
     })),
     workEntries: recent(workspace.workEntries, 30).map((entry) => ({
       entryDate: entry.entryDate,
       title: entry.title,
-      content: truncate(entry.content),
-      result: truncate(entry.result),
-      tags: entry.tags.slice(0, 10),
+      summary: summary(entry.result, entry.content),
     })),
     learningEntries: recent(workspace.learningEntries, 30).map((entry) => ({
       entryDate: entry.entryDate,
       title: entry.title,
-      content: truncate(entry.content),
-      keyPoints: truncate(entry.keyPoints),
-      nextAction: truncate(entry.nextAction),
-      tags: entry.tags.slice(0, 10),
+      summary: summary(entry.keyPoints, entry.nextAction, entry.content),
     })),
   };
 }

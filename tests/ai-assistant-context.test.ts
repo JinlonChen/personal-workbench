@@ -68,7 +68,6 @@ describe("AI assistant workspace context", () => {
     const context = buildAssistantContext(workspace, "2026-08-17");
     expect(context.tasks[0]).toEqual({
       title: "完成今天最重要的一件事",
-      description: "把注意力留给真正推动事情前进的工作。",
       taskDate: "2026-08-17",
       placement: "scheduled",
       backlogKind: null,
@@ -81,7 +80,7 @@ describe("AI assistant workspace context", () => {
     expect(JSON.stringify(context)).not.toContain("local-user");
   });
 
-  it("limits collection sizes and truncates record bodies", () => {
+  it("limits collection sizes and sends summaries instead of record bodies", () => {
     const workspace = createSeedWorkspace("2026-08-17");
     workspace.tasks = Array.from({ length: 205 }, (_, index) => workspaceTask(index));
     workspace.workEntries = Array.from({ length: 35 }, (_, index) => workEntry(index));
@@ -90,7 +89,8 @@ describe("AI assistant workspace context", () => {
     expect(context.tasks).toHaveLength(200);
     expect(context.workEntries).toHaveLength(30);
     expect(context.learningEntries).toHaveLength(30);
-    expect(context.workEntries[0].content.length).toBeLessThanOrEqual(240);
-    expect(context.learningEntries[0].content.length).toBeLessThanOrEqual(240);
+    expect(context.workEntries[0]).toEqual({ entryDate: "2026-08-17", title: "工作 0", summary: "完成" });
+    expect(context.learningEntries[0]).toEqual({ entryDate: "2026-08-17", title: "学习 0", summary: "关键点" });
+    expect(JSON.stringify(context)).not.toContain("0".repeat(300));
   });
 });

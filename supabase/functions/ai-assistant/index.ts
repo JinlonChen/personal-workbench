@@ -55,23 +55,197 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function validateModelResponse(value: unknown): boolean {
+function validText(value: unknown, max: number, required = false): boolean {
+  if (value === undefined || value === null) return !required;
+  if (typeof value !== "string") return false;
+  const text = value.trim();
+  return (!required || text.length > 0) && text.length <= max;
+}
+
+function validDate(value: unknown, required = true): boolean {
+  if ((value === undefined || value === null || value === "") && !required) return true;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T12:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function validChoice(value: unknown, allowed: readonly string[]): boolean {
+  return value === undefined || value === null || value === "" || (typeof value === "string" && allowed.includes(value));
+}
+
+function validTags(value: unknown): boolean {
+  return value === undefined || value === null || (Array.isArray(value)
+    && value.length <= 10
+    && value.every((tag) => validText(tag, 40, true)));
+}
+
+function validTaskData(data: Record<string, unknown>): boolean {
+  return validText(data.title, 200, true)
+    && validText(data.description, 4000)
+    && validDate(data.taskDate)
+    && validChoice(data.priority, ["high", "medium", "low"]);
+}
+
+function validRecurringData(data: Record<string, unknown>): boolean {
+  return validText(data.title, 200, true)
+    && validText(data.description, 4000)
+    && validChoice(data.category, ["work", "life"])
+    && validDate(data.startDate)
+    && Number.isInteger(data.interval)
+    && (data.interval as number) >= 1
+    && (data.interval as number) <= 365
+    && validChoice(data.unit, ["day", "week", "month", "quarter", "year"])
+    && validChoice(data.mode, ["fixed", "after_completion"])
+    && validChoice(data.missedPolicy, ["catch_up_all", "latest_only"])
+    && validChoice(data.priority, ["high", "medium", "low"])
+    && validDate(data.endDate, false);
+}
+
+function validFocusProjectData(data: Record<string, unknown>): boolean {
+  return validText(data.name, 200, true)
+    && validText(data.platformUrl, 1000)
+    && validText(data.owner, 200)
+    && validChoice(data.tier, ["top", "parallel", "paused"])
+    && validChoice(data.status, ["on_track", "attention", "blocked"])
+    && validText(data.currentGoal, 4000)
+    && validText(data.risk, 4000)
+    && validText(data.nextAction, 4000)
+    && validText(data.latestConclusion, 4000)
+    && validDate(data.nextReviewDate);
+}
+
+function validWorkEntryData(data: Record<string, unknown>): boolean {
+  return validDate(data.entryDate)
+    && validText(data.title, 200, true)
+    && validText(data.content, 4000)
+    && validText(data.result, 4000)
+    && validTags(data.tags);
+}
+
+function validLearningEntryData(data: Record<string, unknown>): boolean {
+  return validDate(data.entryDate)
+    && validText(data.title, 200, true)
+    && validText(data.content, 4000)
+    && validText(data.sourceUrl, 1000)
+    && validText(data.keyPoints, 4000)
+    && validText(data.nextAction, 4000)
+    && validTags(data.tags);
+}
+
+function validAction(value: unknown): boolean {
+  if (!isRecord(value) || typeof value.type !== "string" || !allowedActions.has(value.type) || !isRecord(value.data)) return false;
+  switch (value.type) {
+    case "create_task":
+    case "create_backlog_task": return validTaskData(value.data);
+    case "create_recurring_plan": return validRecurringData(value.data);
+    case "create_focus_project": return validFocusProjectData(value.data);
+    case "create_work_entry": return validWorkEntryData(value.data);
+    case "create_learning_entry": return validLearningEntryData(value.data);
+    default: return false;
+  }
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const allowed = new Set(keys);
+  return Object.keys(value).every((key) => allowed.has(key)) && keys.every((key) => key in value);
+}
+
+function contextText(value: unknown, max: number, required = false): boolean {
+  return typeof value === "string" && value.length <= max && (!required || value.trim().length > 0);
+}
+
+function requiredChoice(value: unknown, allowed: readonly string[]): boolean {
+  return typeof value === "string" && allowed.includes(value);
+}
+
+function validPeriod(value: unknown): boolean {
+  return isRecord(value)
+    && hasOnlyKeys(value, ["start", "end"])
+    && validDate(value.start)
+    && validDate(value.end);
+}
+
+function validContextTask(value: unknown): boolean {
+  return isRecord(value)
+    && hasOnlyKeys(value, ["title", "taskDate", "placement", "backlogKind", "priority", "status"])
+    && contextText(value.title, 200, true)
+    && validDate(value.taskDate)
+    && requiredChoice(value.placement, ["scheduled", "backlog"])
+    && (value.backlogKind === null || requiredChoice(value.backlogKind, ["unscheduled", "unexecuted"]))
+    && requiredChoice(value.priority, ["high", "medium", "low"])
+    && requiredChoice(value.status, ["todo", "doing", "done", "cancelled"]);
+}
+
+function validContextProject(value: unknown): boolean {
+  return isRecord(value)
+    && hasOnlyKeys(value, ["name", "tier", "status", "currentGoal", "risk", "nextAction", "latestConclusion", "nextReviewDate"])
+    && contextText(value.name, 200, true)
+    && requiredChoice(value.tier, ["top", "parallel", "paused"])
+    && requiredChoice(value.status, ["on_track", "attention", "blocked"])
+    && contextText(value.currentGoal, 240)
+    && contextText(value.risk, 240)
+    && contextText(value.nextAction, 240)
+    && contextText(value.latestConclusion, 240)
+    && validDate(value.nextReviewDate);
+}
+
+function validContextRecurringPlan(value: unknown): boolean {
+  return isRecord(value)
+    && hasOnlyKeys(value, ["title", "interval", "unit", "status", "nextDueDate"])
+    && contextText(value.title, 200, true)
+    && Number.isInteger(value.interval)
+    && (value.interval as number) >= 1
+    && (value.interval as number) <= 365
+    && requiredChoice(value.unit, ["day", "week", "month", "quarter", "year"])
+    && requiredChoice(value.status, ["active", "paused", "terminated"])
+    && validDate(value.nextDueDate, false);
+}
+
+function validContextEntry(value: unknown): boolean {
+  return isRecord(value)
+    && hasOnlyKeys(value, ["entryDate", "title", "summary"])
+    && validDate(value.entryDate)
+    && contextText(value.title, 200, true)
+    && contextText(value.summary, 240);
+}
+
+function validContextArray(value: unknown, max: number, validator: (item: unknown) => boolean): boolean {
+  return Array.isArray(value) && value.length <= max && value.every(validator);
+}
+
+export function validateAssistantContext(value: unknown): boolean {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["today", "timezone", "periods", "tasks", "focusProjects", "recurringPlans", "workEntries", "learningEntries"])) return false;
+  if (!isRecord(value.periods) || !hasOnlyKeys(value.periods, ["week", "month"])) return false;
+  return validDate(value.today)
+    && contextText(value.timezone, 100, true)
+    && validPeriod(value.periods.week)
+    && validPeriod(value.periods.month)
+    && validContextArray(value.tasks, 200, validContextTask)
+    && validContextArray(value.focusProjects, 50, validContextProject)
+    && validContextArray(value.recurringPlans, 50, validContextRecurringPlan)
+    && validContextArray(value.workEntries, 30, validContextEntry)
+    && validContextArray(value.learningEntries, 30, validContextEntry);
+}
+
+export function validateModelResponse(value: unknown): boolean {
   if (!isRecord(value)) return false;
-  if (value.kind === "answer") return typeof value.answer === "string" && Array.isArray(value.references);
-  if (value.kind === "clarification") return typeof value.question === "string";
-  if (value.kind !== "draft_actions" || typeof value.summary !== "string" || !Array.isArray(value.actions)) return false;
+  if (value.kind === "answer") {
+    return validText(value.answer, 4000, true)
+      && Array.isArray(value.references)
+      && value.references.length <= 10
+      && value.references.every((reference) => validText(reference, 80, true));
+  }
+  if (value.kind === "clarification") return validText(value.question, 500, true);
+  if (value.kind !== "draft_actions" || !validText(value.summary, 500, true) || !Array.isArray(value.actions)) return false;
   if (value.actions.length < 1 || value.actions.length > 5) return false;
-  return value.actions.every((item) => isRecord(item)
-    && typeof item.type === "string"
-    && allowedActions.has(item.type)
-    && isRecord(item.data));
+  return value.actions.every(validAction);
 }
 
 function removeCodeFence(value: string): string {
   return value.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 }
 
-Deno.serve(async (request) => {
+export async function handleRequest(request: Request): Promise<Response> {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return error("METHOD_NOT_ALLOWED", "只支持 POST 请求。", 405);
 
@@ -94,7 +268,7 @@ Deno.serve(async (request) => {
     if (!isRecord(body) || typeof body.prompt !== "string" || !body.prompt.trim()) {
       return error("INVALID_REQUEST", "请输入要询问或新增的内容。", 400);
     }
-    if (body.prompt.trim().length > 2000 || !isRecord(body.context)) {
+    if (body.prompt.trim().length > 2000 || !validateAssistantContext(body.context)) {
       return error("INVALID_REQUEST", "请求格式不正确或内容过长。", 400);
     }
     const serializedContext = JSON.stringify(body.context);
@@ -139,4 +313,6 @@ Deno.serve(async (request) => {
     console.error("AI assistant function failed", reason);
     return error("INTERNAL_ERROR", "AI 服务暂时不可用，请稍后重试。", 500);
   }
-});
+}
+
+if (typeof Deno !== "undefined") Deno.serve(handleRequest);

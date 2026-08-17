@@ -232,10 +232,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   async function createFocusProject(input: FocusProjectInput) {
-    if (!workspace) return;
+    const current = workspaceRef.current;
+    if (!current) return;
     const now = new Date().toISOString();
     const project: FocusProject = { id: createId(), createdAt: now, updatedAt: now, ...input };
-    await replaceWorkspace({ ...workspace, focusProjects: [project, ...workspace.focusProjects] });
+    await replaceWorkspace({ ...current, focusProjects: [project, ...current.focusProjects] });
   }
 
   async function updateFocusProject(id: string, patch: FocusProjectInput) {
@@ -256,7 +257,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   async function createTask(input: TaskInput) {
-    if (!workspace) return;
+    const current = workspaceRef.current;
+    if (!current) return;
     const now = new Date().toISOString();
     const task: WorkspaceTask = {
       id: createId(),
@@ -270,7 +272,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updatedAt: now,
       ...input,
     };
-    await replaceWorkspace({ ...workspace, tasks: [task, ...workspace.tasks] });
+    await replaceWorkspace({ ...current, tasks: [task, ...current.tasks] });
   }
 
   async function updateTask(id: string, patch: Partial<TaskInput>) {
@@ -296,9 +298,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   async function createRecurringPlan(input: RecurringPlanInput) {
-    if (!workspace) return;
+    const current = workspaceRef.current;
+    if (!current) return;
     const now = new Date().toISOString();
-    const next = buildRecurringPlan(workspace, input, createId(), now);
+    const next = buildRecurringPlan(current, input, createId(), now);
     await replaceWorkspace(next);
     await reconcileRecurringNow();
   }
@@ -353,10 +356,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   async function createWorkEntry(input: WorkEntryInput) {
-    if (!workspace) return;
+    const current = workspaceRef.current;
+    if (!current) return;
     const now = new Date().toISOString();
     const entry: WorkEntry = { id: createId(), createdAt: now, updatedAt: now, ...input };
-    await replaceWorkspace({ ...workspace, workEntries: [entry, ...workspace.workEntries] });
+    await replaceWorkspace({ ...current, workEntries: [entry, ...current.workEntries] });
   }
 
   async function updateWorkEntry(id: string, patch: WorkEntryInput) {
@@ -371,10 +375,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   async function createLearningEntry(input: LearningEntryInput) {
-    if (!workspace) return;
+    const current = workspaceRef.current;
+    if (!current) return;
     const now = new Date().toISOString();
     const entry: LearningEntry = { id: createId(), createdAt: now, updatedAt: now, ...input };
-    await replaceWorkspace({ ...workspace, learningEntries: [entry, ...workspace.learningEntries] });
+    await replaceWorkspace({ ...current, learningEntries: [entry, ...current.learningEntries] });
   }
 
   async function updateLearningEntry(id: string, patch: LearningEntryInput) {
