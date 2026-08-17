@@ -3,6 +3,7 @@
 import { KeyRound, Mail } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 
+import { BrandMark } from "@/components/brand-mark";
 import { useAuth } from "@/state/auth-provider";
 import { isLocalModeRequested } from "@/data/local-mode";
 
@@ -65,7 +66,7 @@ export function SignInView() {
   return (
     <main className="auth-screen">
       <section className="auth-panel" aria-labelledby="sign-in-title">
-        <div className="auth-brand"><span className="brand-mark" role="img" aria-label="龍字标识">龍</span><div><strong>龍序</strong><span>日日自新，事事有序</span></div></div>
+        <div className="auth-brand"><BrandMark /><div><strong>龍序</strong><span>日日自新，事事有序</span></div></div>
         <div className="auth-copy">
           <span className="eyebrow">跨设备同步</span>
           <h1 id="sign-in-title">登录你的工作台</h1>

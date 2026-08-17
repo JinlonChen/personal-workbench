@@ -13,6 +13,7 @@ import { useState } from "react";
 import { useEffect } from "react";
 
 import { formatDate, todayKey } from "@/domain/date";
+import { BrandMark } from "@/components/brand-mark";
 import { TasksView } from "@/features/tasks";
 import { TodayView } from "@/features/today";
 import { RecordsView } from "@/features/records";
@@ -82,7 +83,7 @@ export function AppShell() {
 
       <nav className="primary-nav" aria-label="主要导航">
         <div className="brand-lockup">
-          <span className="brand-mark" role="img" aria-label="龍字标识">龍</span>
+          <BrandMark />
           <div><strong>龍序</strong><span>日日自新，事事有序</span></div>
         </div>
         <div className="nav-date"><span>{formatDate(date)}</span><small>把今天写清楚</small></div>
