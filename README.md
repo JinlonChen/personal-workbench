@@ -16,6 +16,7 @@
 - JSON / Markdown 数据导出
 - 浏览器 `localStorage` 持久化；配置 Supabase 后支持邮箱登录和跨设备同步
 - Supabase PostgreSQL schema、索引、触发器和 RLS 策略
+- AI 助手：基于现有工作台数据回答问题，并在用户确认后新增任务、周期计划、关注项目和记录
 
 未配置 Supabase 时，数据只保存在当前浏览器中。配置后，登录同一邮箱的设备会使用 Supabase 云端数据。
 
@@ -97,3 +98,19 @@ npm run test:e2e
 4. [`supabase/migrations/20260817_add_recurring_tasks.sql`](./supabase/migrations/20260817_add_recurring_tasks.sql)：增加周期计划、期次记录、任务来源字段、索引和 RLS 策略。
 
 迁移脚本使用幂等创建语句，重复执行不会重复创建已有表、触发器或策略。
+
+### AI 助手 Edge Function
+
+AI 助手通过 Supabase Edge Function 调用 DeepSeek，模型密钥不会进入浏览器或 GitHub。部署前在 Supabase Dashboard 的 `Edge Functions` → `Secrets` 中填写：
+
+- `DEEPSEEK_API_KEY`：必填，DeepSeek API Key；
+- `AI_BASE_URL`：可选，默认 `https://api.deepseek.com`；
+- `AI_MODEL`：可选，默认 `deepseek-chat`。
+
+使用 Supabase CLI 部署：
+
+```bash
+supabase functions deploy ai-assistant
+```
+
+不要把上述密钥写入 `.env.local`、GitHub Actions 或任何 `NEXT_PUBLIC_` 环境变量。AI 助手只允许已登录账号调用，第一版只查询数据或生成待确认的新增草稿，不会直接修改或删除工作台数据。

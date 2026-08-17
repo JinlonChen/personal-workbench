@@ -1,7 +1,8 @@
-export const APP_VERSION = "0.2.2";
+export const APP_VERSION = "0.3.0";
 export const APP_RELEASE_DATE = "2026-08-17";
 export const APP_RELEASE_NOTES = [
-  "个人工作台正式更名为“龍序”，启用红色书法龍字图标与题句",
-  "新增周期任务：按天、周、月、季度或年自动加入今日任务",
-  "周期任务、待办任务、番茄钟与云端同步保持一致",
+  "新增 AI 助手，可依据工作台数据回答任务、项目与周期事项问题",
+  "支持生成六类新增草稿，确认后沿用现有云端同步保存",
+  "增加 DeepSeek Edge Function，模型密钥仅保存在 Supabase Secrets",
+  "启用红色双龍 AI 入口图标，并适配桌面与手机界面",
 ] as const;

@@ -24,6 +24,7 @@ import { RecurringView } from "@/features/recurring";
 import { useWorkspace } from "@/state/workspace-provider";
 import { recurringSummary } from "@/domain/selectors";
 import { notifyDueRecurringTasks } from "@/features/recurring-notifications";
+import { Assistant } from "@/features/ai-assistant/assistant";
 
 type View = "today" | "focus" | "tasks" | "recurring" | "records" | "reviews" | "settings";
 
@@ -108,6 +109,7 @@ export function AppShell() {
       <main className="app-content">
         <ViewPlaceholder view={view} onNavigate={setView} />
       </main>
+      <Assistant />
     </div>
   );
 }

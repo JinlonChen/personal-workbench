@@ -36,6 +36,17 @@ test("手机视口可以使用番茄钟且不产生横向溢出", async ({ page 
   await expect(page.getByText("今日完成 0 个番茄 · 0 分钟", { exact: true })).toBeVisible();
 });
 
+test("手机端 AI 助手入口位于顶栏且不遮挡页面内容", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "仅检查手机布局");
+  const trigger = page.getByRole("button", { name: "打开 AI 助手", exact: true });
+  const header = page.locator(".mobile-header");
+  const [triggerBox, headerBox] = await Promise.all([trigger.boundingBox(), header.boundingBox()]);
+  expect(triggerBox).not.toBeNull();
+  expect(headerBox).not.toBeNull();
+  expect(triggerBox!.y).toBeGreaterThanOrEqual(headerBox!.y);
+  expect(triggerBox!.y + triggerBox!.height).toBeLessThanOrEqual(headerBox!.y + headerBox!.height);
+});
+
 test("主要导航可以打开关注、任务、周期、记录、复盘和设置", async ({ page }) => {
   const primaryNavigation = page.getByRole("navigation", { name: "主要导航" });
 
