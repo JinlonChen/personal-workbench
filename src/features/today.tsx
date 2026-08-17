@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BookOpen, BriefcaseBusiness, CheckCircle2, Plus, Sunrise } from "lucide-react";
+import { ArrowRight, BookOpen, BriefcaseBusiness, CheckCircle2, Plus, RefreshCcw, Sunrise } from "lucide-react";
 
 import { PageHeader, SaveIndicator } from "@/components/ui";
 import { formatDate, todayKey } from "@/domain/date";
@@ -9,16 +9,18 @@ import { useWorkspace } from "@/state/workspace-provider";
 import { TaskList } from "./tasks";
 import { PomodoroTimer } from "./pomodoro-timer";
 
-export function TodayView({ onNavigate }: { onNavigate: (view: "tasks" | "records" | "reviews") => void }) {
+export function TodayView({ onNavigate }: { onNavigate: (view: "tasks" | "records" | "reviews" | "recurring") => void }) {
   const { workspace, saveStatus, syncMode } = useWorkspace();
   const date = todayKey(workspace.profile.timezone);
   const tasks = tasksForDate(workspace.tasks, date);
   const focus = tasks.filter((task) => task.status !== "done" && task.status !== "cancelled").slice(0, 3);
   const rate = completionRate(workspace.tasks, date);
+  const recurringDue = tasks.filter((task) => task.source === "recurring_plan" && task.status !== "done" && task.status !== "cancelled").length;
 
   return (
     <section className="view-page today-page">
       <PageHeader eyebrow={formatDate(date)} title="今日工作台" description={`${workspace.profile.displayName}，把今天最重要的事情写清楚。`} action={<SaveIndicator status={saveStatus} mode={syncMode} />} />
+      {recurringDue > 0 ? <section className="recurring-due-band"><RefreshCcw size={18} /><div><strong>今天有 {recurringDue} 项周期任务</strong><span>已自动加入今日任务。</span></div><button className="text-button" type="button" onClick={() => onNavigate("recurring")}>查看周期</button></section> : null}
       <section className="focus-band">
         <div className="focus-icon"><Sunrise size={20} /></div>
         <div className="focus-content"><span>今日最重要</span>{focus.length ? focus.map((task) => <strong key={task.id}>{task.title}</strong>) : <strong>今天的关键事项已完成</strong>}</div>

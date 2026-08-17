@@ -1,5 +1,5 @@
 import { nextDate } from "./date";
-import type { DailyReview, FocusSession, LearningEntry, RecordFilters, WorkEntry, WorkspaceTask } from "./types";
+import type { DailyReview, FocusSession, LearningEntry, RecordFilters, RecurringPlan, WorkEntry, WorkspaceTask } from "./types";
 
 export function tasksForDate(tasks: WorkspaceTask[], date: string): WorkspaceTask[] {
   return tasks
@@ -90,4 +90,16 @@ export function reviewStreak(reviews: DailyReview[], referenceDate: string): num
 
 export function tomorrowForTask(task: WorkspaceTask): string {
   return nextDate(task.taskDate);
+}
+
+export function recurringSummary(plans: RecurringPlan[], tasks: WorkspaceTask[], today: string) {
+  let sevenDays = today;
+  for (let index = 0; index < 7; index += 1) sevenDays = nextDate(sevenDays);
+  const open = tasks.filter((task) => task.source === "recurring_plan" && task.status !== "done" && task.status !== "cancelled");
+  return {
+    dueToday: open.filter((task) => task.recurrenceDueDate === today).length,
+    overdue: open.filter((task) => Boolean(task.recurrenceDueDate && task.recurrenceDueDate < today)).length,
+    nextSevenDays: plans.filter((plan) => plan.status === "active" && Boolean(plan.nextDueDate && plan.nextDueDate > today && plan.nextDueDate <= sevenDays)).length,
+    paused: plans.filter((plan) => plan.status === "paused").length,
+  };
 }

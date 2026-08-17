@@ -40,7 +40,7 @@ describe("LocalWorkspaceRepository", () => {
   it("seeds an empty store and persists updates", async () => {
     const repository = new LocalWorkspaceRepository(storage);
     const initial = await repository.load();
-    expect(initial.schemaVersion).toBe(2);
+    expect(initial.schemaVersion).toBe(3);
     expect(initial.focusSessions).toEqual([]);
     expect(initial.tasks.length).toBeGreaterThan(0);
 
@@ -63,7 +63,7 @@ describe("LocalWorkspaceRepository", () => {
     );
 
     const workspace = await new LocalWorkspaceRepository(storage).load();
-    expect(workspace.schemaVersion).toBe(2);
+    expect(workspace.schemaVersion).toBe(3);
     expect(workspace.profile.displayName).toBe("旧数据");
     expect(workspace.profile.id).toBe("local-user");
     expect(workspace.focusProjects).toEqual([]);
@@ -103,7 +103,7 @@ describe("LocalWorkspaceRepository", () => {
 
     const workspace = await new LocalWorkspaceRepository(storage).load();
 
-    expect(workspace.schemaVersion).toBe(2);
+    expect(workspace.schemaVersion).toBe(3);
     expect(workspace.focusSessions).toEqual([]);
     expect(workspace.focusProjects).toEqual(seeded.focusProjects);
     expect(workspace.tasks).toEqual([{
@@ -111,6 +111,9 @@ describe("LocalWorkspaceRepository", () => {
       placement: "scheduled",
       backlogKind: null,
       originalTaskDate: null,
+      recurringPlanId: null,
+      recurrenceDueDate: null,
+      source: "manual",
     }]);
     expect(workspace.workEntries).toEqual(seeded.workEntries);
     expect(workspace.learningEntries).toEqual(seeded.learningEntries);

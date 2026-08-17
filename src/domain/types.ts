@@ -2,6 +2,12 @@ export type TaskPriority = "high" | "medium" | "low";
 export type TaskStatus = "todo" | "doing" | "done" | "cancelled";
 export type TaskPlacement = "scheduled" | "backlog";
 export type TaskBacklogKind = "unscheduled" | "unexecuted" | null;
+export type RecurrenceUnit = "day" | "week" | "month" | "quarter" | "year";
+export type RecurrenceMode = "fixed" | "after_completion";
+export type MissedOccurrencePolicy = "catch_up_all" | "latest_only";
+export type RecurringPlanStatus = "active" | "paused" | "terminated";
+export type RecurringCategory = "work" | "life";
+export type RecurringOccurrenceStatus = "generated" | "completed" | "cancelled" | "skipped" | "deleted";
 export type FocusProjectStatus = "on_track" | "attention" | "blocked";
 export type FocusProjectTier = "top" | "parallel" | "paused";
 export type Mood = "low" | "neutral" | "steady" | "good" | "great";
@@ -26,7 +32,9 @@ export interface WorkspaceTask {
   originalTaskDate: string | null;
   priority: TaskPriority;
   status: TaskStatus;
-  source: "manual" | "work_entry";
+  source: "manual" | "work_entry" | "recurring_plan";
+  recurringPlanId: string | null;
+  recurrenceDueDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -97,8 +105,40 @@ export interface FocusSession {
   createdAt: string;
 }
 
+export interface RecurringPlan {
+  id: string;
+  title: string;
+  description: string;
+  category: RecurringCategory;
+  startDate: string;
+  interval: number;
+  unit: RecurrenceUnit;
+  mode: RecurrenceMode;
+  missedPolicy: MissedOccurrencePolicy | null;
+  priority: TaskPriority;
+  inAppReminder: boolean;
+  browserNotification: boolean;
+  endDate: string | null;
+  status: RecurringPlanStatus;
+  completionAnchorDate: string | null;
+  nextDueDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecurringOccurrence {
+  id: string;
+  recurringPlanId: string;
+  dueDate: string;
+  taskId: string | null;
+  status: RecurringOccurrenceStatus;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Workspace {
-  schemaVersion: 2;
+  schemaVersion: 3;
   profile: Profile;
   focusProjects: FocusProject[];
   tasks: WorkspaceTask[];
@@ -106,10 +146,13 @@ export interface Workspace {
   learningEntries: LearningEntry[];
   dailyReviews: DailyReview[];
   focusSessions: FocusSession[];
+  recurringPlans: RecurringPlan[];
+  recurringOccurrences: RecurringOccurrence[];
 }
 
 export type TaskInput = Pick<WorkspaceTask, "title" | "description" | "taskDate" | "priority" | "status">
   & Partial<Pick<WorkspaceTask, "placement" | "backlogKind" | "originalTaskDate">>;
+export type RecurringPlanInput = Omit<RecurringPlan, "id" | "status" | "completionAnchorDate" | "nextDueDate" | "createdAt" | "updatedAt">;
 export type FocusProjectInput = Omit<FocusProject, "id" | "createdAt" | "updatedAt">;
 export type WorkEntryInput = Pick<WorkEntry, "entryDate" | "title" | "content" | "result" | "taskId" | "tags">;
 export type LearningEntryInput = Pick<

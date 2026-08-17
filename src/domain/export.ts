@@ -1,4 +1,5 @@
 import type { Workspace } from "./types";
+import { recurrenceLabel } from "./recurrence";
 
 const focusStatusLabels = {
   on_track: "正常",
@@ -45,6 +46,9 @@ export function exportMarkdown(workspace: Workspace): string {
     "",
     "## 专注记录",
     ...focusLines,
+    "## 周期计划",
+    ...workspace.recurringPlans.map((plan) => `- ${plan.title}｜${recurrenceLabel(plan)}｜${plan.status === "active" ? "进行中" : plan.status === "paused" ? "已暂停" : "已终止"}｜${plan.nextDueDate ? `下次：${plan.nextDueDate}` : "无后续期次"}`),
+    "",
     "## 工作记录",
     ...workspace.workEntries.flatMap((entry) => [
       `### ${entry.entryDate} · ${entry.title}`,

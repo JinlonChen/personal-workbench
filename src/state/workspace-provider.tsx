@@ -7,6 +7,7 @@ import { getSupabaseClient } from "@/data/supabase-client";
 import { LocalWorkspaceRepository } from "@/data/local-repository";
 import { createSeedWorkspace } from "@/data/seed";
 import { nextDate, todayKey } from "@/domain/date";
+import { reconcileRecurringWorkspace } from "@/domain/recurrence";
 import { expireTasks } from "@/domain/selectors";
 import { createId } from "@/domain/id";
 import type {
@@ -18,6 +19,7 @@ import type {
   LearningEntry,
   LearningEntryInput,
   Profile,
+  RecurringPlanInput,
   SaveStatus,
   TaskInput,
   WorkEntry,
@@ -27,6 +29,7 @@ import type {
 } from "@/domain/types";
 import { useAuth } from "./auth-provider";
 import { persistFocusSession } from "./focus-session-action";
+import { buildRecurringPlan, setRecurringPlanStatus, syncRecurringTaskStatus, updateRecurringPlan as updatePlanState } from "./recurring-actions";
 
 interface WorkspaceContextValue {
   workspace: Workspace;
@@ -54,12 +57,19 @@ interface WorkspaceContextValue {
   createFocusSession: (input: Omit<FocusSession, "createdAt">) => Promise<void>;
   updateProfile: (patch: Pick<Profile, "displayName" | "timezone">) => Promise<void>;
   resetWorkspace: () => Promise<void>;
+  createRecurringPlan: (input: RecurringPlanInput) => Promise<void>;
+  updateRecurringPlan: (id: string, input: RecurringPlanInput) => Promise<void>;
+  pauseRecurringPlan: (id: string) => Promise<void>;
+  resumeRecurringPlan: (id: string) => Promise<void>;
+  terminateRecurringPlan: (id: string) => Promise<void>;
+  skipRecurringPlanOccurrence: (id: string) => Promise<void>;
+  reconcileRecurringNow: () => Promise<void>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 function hasLocalData(workspace: Workspace) {
-  return workspace.focusProjects.length > 0 || workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0 || workspace.focusSessions.length > 0;
+  return workspace.focusProjects.length > 0 || workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0 || workspace.focusSessions.length > 0 || workspace.recurringPlans.length > 0 || workspace.recurringOccurrences.length > 0;
 }
 
 function MigrationDialog({ onUpload, onStartFresh }: { onUpload: () => void; onStartFresh: () => void }) {
@@ -89,6 +99,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [syncMode, setSyncMode] = useState<"local" | "cloud">("local");
   const [migrationPending, setMigrationPending] = useState(false);
+  const recurringCheckRef = useRef(false);
   const localRepository = useMemo(
     () => (typeof window === "undefined" ? null : new LocalWorkspaceRepository(window.localStorage)),
     [],
@@ -111,12 +122,32 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [localRepository, repository, syncMode]);
 
+  const reconcileRecurringNow = useCallback(async () => {
+    if (!repository || !localRepository || !workspaceRef.current || recurringCheckRef.current) return;
+    recurringCheckRef.current = true;
+    try {
+      const current = workspaceRef.current;
+      const result = reconcileRecurringWorkspace(current, todayKey(current.profile.timezone));
+      if (result.workspace !== current) await replaceWorkspace(result.workspace);
+    } finally {
+      recurringCheckRef.current = false;
+    }
+  }, [localRepository, replaceWorkspace, repository]);
+
   useEffect(() => {
     if (!workspace || !repository) return;
     const tasks = expireTasks(workspace.tasks, todayKey(workspace.profile.timezone));
     if (tasks.every((task, index) => task === workspace.tasks[index])) return;
     void replaceWorkspace({ ...workspace, tasks });
   }, [repository, replaceWorkspace, workspace]);
+
+  useEffect(() => {
+    if (!repository || !workspace || typeof window === "undefined") return;
+    void reconcileRecurringNow();
+    const onFocus = () => void reconcileRecurringNow();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [reconcileRecurringNow, repository, workspace]);
 
   useEffect(() => {
     if (!localRepository) return;
@@ -233,6 +264,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       placement: "scheduled",
       backlogKind: null,
       originalTaskDate: null,
+      recurringPlanId: null,
+      recurrenceDueDate: null,
       createdAt: now,
       updatedAt: now,
       ...input,
@@ -243,18 +276,67 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   async function updateTask(id: string, patch: Partial<TaskInput>) {
     if (!workspace) return;
     const updatedAt = new Date().toISOString();
-    await replaceWorkspace({ ...workspace, tasks: workspace.tasks.map((task) => task.id === id ? { ...task, ...patch, updatedAt } : task) });
+    const task = workspace.tasks.find((item) => item.id === id);
+    let next = { ...workspace, tasks: workspace.tasks.map((item) => item.id === id ? { ...item, ...patch, updatedAt } : item) };
+    if (task && patch.status) next = syncRecurringTaskStatus(next, task, patch.status, updatedAt);
+    await replaceWorkspace(next);
   }
 
   async function deleteTask(id: string) {
     if (!workspace) return;
     const updatedAt = new Date().toISOString();
+    const task = workspace.tasks.find((item) => item.id === id);
+    const next = task ? syncRecurringTaskStatus(workspace, task, "deleted", updatedAt) : workspace;
     await replaceWorkspace({
-      ...workspace,
-      tasks: workspace.tasks.filter((task) => task.id !== id),
-      workEntries: workspace.workEntries.map((entry) => entry.taskId === id ? { ...entry, taskId: null, updatedAt } : entry),
-      focusSessions: workspace.focusSessions.map((session) => session.taskId === id ? { ...session, taskId: null } : session),
+      ...next,
+      tasks: next.tasks.filter((item) => item.id !== id),
+      workEntries: next.workEntries.map((entry) => entry.taskId === id ? { ...entry, taskId: null, updatedAt } : entry),
+      focusSessions: next.focusSessions.map((session) => session.taskId === id ? { ...session, taskId: null } : session),
     });
+  }
+
+  async function createRecurringPlan(input: RecurringPlanInput) {
+    if (!workspace) return;
+    const now = new Date().toISOString();
+    const next = buildRecurringPlan(workspace, input, createId(), now);
+    await replaceWorkspace(next);
+    await reconcileRecurringNow();
+  }
+
+  async function updateRecurringPlan(id: string, input: RecurringPlanInput) {
+    if (!workspace) return;
+    const next = updatePlanState(workspace, id, input, new Date().toISOString());
+    await replaceWorkspace(next);
+    await reconcileRecurringNow();
+  }
+
+  async function changeRecurringPlanStatus(id: string, status: "active" | "paused" | "terminated") {
+    if (!workspace) return;
+    const next = setRecurringPlanStatus(workspace, id, status, new Date().toISOString());
+    await replaceWorkspace(next);
+    if (status === "active") await reconcileRecurringNow();
+  }
+
+  async function pauseRecurringPlan(id: string) { await changeRecurringPlanStatus(id, "paused"); }
+  async function resumeRecurringPlan(id: string) { await changeRecurringPlanStatus(id, "active"); }
+  async function terminateRecurringPlan(id: string) { await changeRecurringPlanStatus(id, "terminated"); }
+
+  async function skipRecurringPlanOccurrence(id: string) {
+    if (!workspace) return;
+    const now = new Date().toISOString();
+    const current = workspace.recurringOccurrences
+      .filter((occurrence) => occurrence.recurringPlanId === id && occurrence.status === "generated")
+      .sort((left, right) => right.dueDate.localeCompare(left.dueDate))[0];
+    if (!current) return;
+    const plan = workspace.recurringPlans.find((item) => item.id === id);
+    const next: Workspace = {
+      ...workspace,
+      tasks: workspace.tasks.map((task) => task.id === current.taskId ? { ...task, status: "cancelled", updatedAt: now } : task),
+      recurringOccurrences: workspace.recurringOccurrences.map((occurrence) => occurrence.id === current.id ? { ...occurrence, status: "skipped", resolvedAt: now, updatedAt: now } : occurrence),
+      recurringPlans: workspace.recurringPlans.map((item) => item.id === id && plan?.mode === "after_completion" ? { ...item, completionAnchorDate: now.slice(0, 10), updatedAt: now } : item),
+    };
+    await replaceWorkspace(next);
+    await reconcileRecurringNow();
   }
 
   async function rollTaskToTomorrow(id: string) {
@@ -360,7 +442,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createFocusProject, updateFocusProject, deleteFocusProject, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, createFocusSession, updateProfile, resetWorkspace }}>
+    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createFocusProject, updateFocusProject, deleteFocusProject, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, createFocusSession, updateProfile, resetWorkspace, createRecurringPlan, updateRecurringPlan, pauseRecurringPlan, resumeRecurringPlan, terminateRecurringPlan, skipRecurringPlanOccurrence, reconcileRecurringNow }}>
       {children}
       {migrationPending ? <MigrationDialog onUpload={() => void migrateLocalData()} onStartFresh={() => void startFreshCloudWorkspace()} /> : null}
     </WorkspaceContext.Provider>

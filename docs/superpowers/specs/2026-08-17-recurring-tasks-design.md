@@ -251,13 +251,13 @@ interface RecurringPlan {
   endDate: string | null;
   status: RecurringPlanStatus;
   completionAnchorDate: string | null;
-  nextDueDate: string;
+  nextDueDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
 ```
 
-`interval` 必须为正整数。`after_completion` 的 `missedPolicy` 必须为空；`fixed` 的 `completionAnchorDate` 必须为空。
+`interval` 必须为正整数。`after_completion` 的 `missedPolicy` 必须为空；`fixed` 的 `completionAnchorDate` 必须为空。计划终止或超过结束日期且不再有候选期次时，`nextDueDate` 为 `null`；页面据此显示“已结束”，不把“已结束”写成可被用户修改的持久状态。
 
 ### 期次记录
 

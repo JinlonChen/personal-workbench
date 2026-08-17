@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 const navigation = [
   ["关注", "重点关注"],
   ["任务", "任务"],
+  ["周期", "周期任务"],
   ["记录", "记录"],
   ["复盘", "每日复盘"],
   ["设置", "设置"],
@@ -35,13 +36,28 @@ test("手机视口可以使用番茄钟且不产生横向溢出", async ({ page 
   await expect(page.getByText("今日完成 0 个番茄 · 0 分钟", { exact: true })).toBeVisible();
 });
 
-test("主要导航可以打开关注、任务、记录、复盘和设置", async ({ page }) => {
+test("主要导航可以打开关注、任务、周期、记录、复盘和设置", async ({ page }) => {
   const primaryNavigation = page.getByRole("navigation", { name: "主要导航" });
 
   for (const [label, heading] of navigation) {
     await primaryNavigation.getByRole("button", { name: label, exact: true }).click();
     await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
   }
+});
+
+test("周期任务到期后自动进入今日任务", async ({ page }) => {
+  const primaryNavigation = page.getByRole("navigation", { name: "主要导航" });
+  await primaryNavigation.getByRole("button", { name: "周期", exact: true }).click();
+  await page.getByRole("button", { name: "新建周期", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "新建周期任务" });
+  await dialog.getByLabel("周期任务名称", { exact: true }).fill("端到端周期任务");
+  await dialog.getByRole("button", { name: "保存周期任务", exact: true }).click();
+
+  await expect(page.getByText("端到端周期任务", { exact: true })).toBeVisible();
+  await primaryNavigation.getByRole("button", { name: "今日", exact: true }).click();
+  await expect(page.getByText("今天有 1 项周期任务", { exact: true })).toBeVisible();
+  await expect(page.getByText("周期任务", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
 
 test("可以新建任务并将其标记为已完成", async ({ page }) => {

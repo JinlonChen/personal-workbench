@@ -57,6 +57,37 @@ describe("Supabase workspace mapping", () => {
 
   it("restores a workspace from database rows", () => {
     const workspace = createSeedWorkspace("2026-07-28");
+    workspace.recurringPlans = [{
+      id: "plan-1",
+      title: "每月核对还贷",
+      description: "确认扣款完成",
+      category: "life",
+      startDate: "2026-07-28",
+      interval: 1,
+      unit: "month",
+      mode: "fixed",
+      missedPolicy: "latest_only",
+      priority: "high",
+      inAppReminder: true,
+      browserNotification: false,
+      endDate: null,
+      status: "active",
+      completionAnchorDate: null,
+      nextDueDate: "2026-08-28",
+      createdAt: "2026-07-28T08:00:00.000Z",
+      updatedAt: "2026-07-28T08:00:00.000Z",
+    }];
+    workspace.tasks[0] = { ...workspace.tasks[0], source: "recurring_plan", recurringPlanId: "plan-1", recurrenceDueDate: "2026-07-28" };
+    workspace.recurringOccurrences = [{
+      id: "occurrence-1",
+      recurringPlanId: "plan-1",
+      dueDate: "2026-07-28",
+      taskId: workspace.tasks[0].id,
+      status: "generated",
+      resolvedAt: null,
+      createdAt: "2026-07-28T08:00:00.000Z",
+      updatedAt: "2026-07-28T08:00:00.000Z",
+    }];
     workspace.focusSessions = [{
       id: "session-1",
       taskId: workspace.tasks[0].id,
@@ -92,11 +123,13 @@ describe("Supabase workspace mapping", () => {
     const rows = workspaceToRows(workspace, "user-1");
     const restored = rowsToWorkspace(rows);
 
-    expect(restored.schemaVersion).toBe(2);
+    expect(restored.schemaVersion).toBe(3);
     expect(restored.profile.id).toBe("user-1");
     expect(restored.tasks).toEqual(workspace.tasks);
     expect(restored.focusProjects).toEqual(workspace.focusProjects);
     expect(restored.focusSessions).toEqual(workspace.focusSessions);
+    expect(restored.recurringPlans).toEqual(workspace.recurringPlans);
+    expect(restored.recurringOccurrences).toEqual(workspace.recurringOccurrences);
   });
 
   it("refreshes the session and retries a load after one 401 response", async () => {
@@ -122,7 +155,7 @@ describe("Supabase workspace mapping", () => {
     const workspace = await new SupabaseWorkspaceRepository(client, "user-1").load();
 
     expect(refreshSession).toHaveBeenCalledTimes(1);
-    expect(from).toHaveBeenCalledTimes(14);
+    expect(from).toHaveBeenCalledTimes(18);
     expect(workspace.profile.id).toBe("user-1");
   });
 });

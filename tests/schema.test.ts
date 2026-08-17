@@ -7,8 +7,8 @@ const schemaPath = path.resolve(process.cwd(), "supabase/schema.sql");
 const schemaExists = existsSync(schemaPath);
 const schemaSource = schemaExists ? readFileSync(schemaPath, "utf8") : "";
 
-const tables = ["profiles", "focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews", "focus_sessions"] as const;
-const businessTables = ["focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews", "focus_sessions"] as const;
+const tables = ["profiles", "focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews", "focus_sessions", "recurring_plans", "recurring_occurrences"] as const;
+const businessTables = ["focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews", "focus_sessions", "recurring_plans", "recurring_occurrences"] as const;
 
 function normalizeSql(candidate: string) {
   return candidate.toLowerCase().replace(/\s+/g, " ").trim();
@@ -121,6 +121,8 @@ function assertDateIndexes(candidate: string) {
     learning_entries: "entry_date",
     daily_reviews: "review_date",
     focus_sessions: "focus_date",
+    recurring_plans: "next_due_date",
+    recurring_occurrences: "due_date",
   } as const;
 
   for (const [table, dateField] of Object.entries(dateFields)) {
@@ -197,7 +199,7 @@ function assertBoundConstraints(candidate: string) {
   expect(tasks).toMatch(
     /\bstatus text not null default 'todo' check \(status in \('todo', 'doing', 'done', 'cancelled'\)\)/,
   );
-  expect(tasks).toMatch(/\bsource text not null default 'manual' check \(source in \('manual', 'work_entry'\)\)/);
+  expect(tasks).toMatch(/\bsource text not null default 'manual' check \(source in \('manual', 'work_entry', 'recurring_plan'\)\)/);
   expect(tasks).toMatch(/\bplacement text not null default 'scheduled' check \(placement in \('scheduled', 'backlog'\)\)/);
   expect(tasks).toMatch(/\bbacklog_kind text check \(backlog_kind in \('unscheduled', 'unexecuted'\)\)/);
   expect(tasks).toMatch(/\boriginal_task_date date/);

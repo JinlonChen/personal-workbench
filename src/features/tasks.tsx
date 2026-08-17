@@ -126,7 +126,7 @@ function TaskRow({ task, focusSessions = [], backlog = false }: { task: Workspac
           <span aria-hidden="true"><CheckCircle2 size={16} /></span>
         </label>
         <div className="task-copy">
-          <div className="task-title-line"><h3>{task.title}</h3><span className={`badge priority-${task.priority}`}>{priorityLabels[task.priority]}</span><span className={`badge status-${task.status}`}>{statusLabels[task.status]}</span>{backlog ? <span className={`badge backlog-${task.backlogKind}`}>{task.backlogKind === "unexecuted" ? "已部署但未执行" : "待排期"}</span> : null}</div>
+          <div className="task-title-line"><h3>{task.title}</h3><span className={`badge priority-${task.priority}`}>{priorityLabels[task.priority]}</span><span className={`badge status-${task.status}`}>{statusLabels[task.status]}</span>{task.source === "recurring_plan" ? <span className="badge recurring-task-badge">周期任务</span> : null}{backlog ? <span className={`badge backlog-${task.backlogKind}`}>{task.backlogKind === "unexecuted" ? "已部署但未执行" : "待排期"}</span> : null}</div>
           {task.description ? <p>{task.description}</p> : null}
           {backlog && task.backlogKind === "unexecuted" && task.originalTaskDate ? <span className="task-backlog-date">原计划：{formatDate(task.originalTaskDate)}</span> : null}
           {focusMinutes > 0 ? <span className="task-focus-time">{focusMinutes} 分钟专注</span> : null}

@@ -8,8 +8,10 @@ import {
   Sparkles,
   SunMedium,
   Target,
+  RefreshCcw,
 } from "lucide-react";
 import { useState } from "react";
+import { useEffect } from "react";
 
 import { formatDate, todayKey } from "@/domain/date";
 import { TasksView } from "@/features/tasks";
@@ -18,14 +20,18 @@ import { RecordsView } from "@/features/records";
 import { ReviewsView } from "@/features/reviews";
 import { SettingsView } from "@/features/settings";
 import { FocusView } from "@/features/focus";
+import { RecurringView } from "@/features/recurring";
 import { useWorkspace } from "@/state/workspace-provider";
+import { recurringSummary } from "@/domain/selectors";
+import { notifyDueRecurringTasks } from "@/features/recurring-notifications";
 
-type View = "today" | "focus" | "tasks" | "records" | "reviews" | "settings";
+type View = "today" | "focus" | "tasks" | "recurring" | "records" | "reviews" | "settings";
 
 const navItems = [
   { id: "today", label: "今日", icon: SunMedium },
   { id: "focus", label: "关注", icon: Target },
   { id: "tasks", label: "任务", icon: CheckSquare2 },
+  { id: "recurring", label: "周期", icon: RefreshCcw },
   { id: "records", label: "记录", icon: NotebookPen },
   { id: "reviews", label: "复盘", icon: CalendarDays },
   { id: "settings", label: "设置", icon: Settings },
@@ -36,6 +42,7 @@ function ViewPlaceholder({ view, onNavigate }: { view: View; onNavigate: (view: 
     today: "今日工作台",
     focus: "重点关注",
     tasks: "任务",
+    recurring: "周期任务",
     records: "记录",
     reviews: "每日复盘",
     settings: "设置",
@@ -43,6 +50,7 @@ function ViewPlaceholder({ view, onNavigate }: { view: View; onNavigate: (view: 
   if (view === "today") return <TodayView onNavigate={onNavigate} />;
   if (view === "focus") return <FocusView />;
   if (view === "tasks") return <TasksView />;
+  if (view === "recurring") return <RecurringView />;
   if (view === "records") return <RecordsView />;
   if (view === "reviews") return <ReviewsView />;
   if (view === "settings") return <SettingsView />;
@@ -57,6 +65,11 @@ export function AppShell() {
   const { workspace, saveStatus, syncMode } = useWorkspace();
   const [view, setView] = useState<View>("today");
   const date = todayKey(workspace.profile.timezone);
+  const recurringDue = recurringSummary(workspace.recurringPlans, workspace.tasks, date).dueToday;
+
+  useEffect(() => {
+    notifyDueRecurringTasks(window.localStorage, workspace.recurringPlans, workspace.tasks, date);
+  }, [date, workspace.recurringPlans, workspace.tasks]);
 
   return (
     <div className="app-shell">
@@ -85,6 +98,7 @@ export function AppShell() {
             >
               <Icon size={18} aria-hidden="true" />
               <span>{label}</span>
+              {id === "recurring" && recurringDue > 0 ? <span className="nav-count" aria-hidden="true">{recurringDue}</span> : null}
             </button>
           ))}
         </div>

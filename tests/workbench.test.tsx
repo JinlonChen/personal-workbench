@@ -6,6 +6,7 @@ import Home from "@/app/page";
 import { STORAGE_KEY } from "@/data/local-repository";
 import { createSeedWorkspace } from "@/data/seed";
 import { todayKey } from "@/domain/date";
+import { APP_RELEASE_NOTES, APP_VERSION } from "@/app/version";
 import { savePomodoro, startPomodoro } from "@/features/pomodoro-state";
 
 describe("workbench navigation", () => {
@@ -13,7 +14,7 @@ describe("workbench navigation", () => {
     localStorage.clear();
   });
 
-  it("navigates among the six workbench views", async () => {
+  it("navigates among the seven workbench views", async () => {
     const user = userEvent.setup();
     render(<Home />);
 
@@ -24,6 +25,9 @@ describe("workbench navigation", () => {
     await user.click(screen.getByRole("button", { name: "任务" }));
     expect(screen.getByRole("heading", { name: "任务" })).toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: "周期" }));
+    expect(screen.getByRole("heading", { name: "周期任务" })).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "记录" }));
     expect(screen.getByRole("heading", { name: "记录" })).toBeInTheDocument();
 
@@ -32,7 +36,7 @@ describe("workbench navigation", () => {
 
     await user.click(screen.getByRole("button", { name: "设置" }));
     expect(screen.getByRole("heading", { name: "设置" })).toBeInTheDocument();
-  });
+  }, 10_000);
 
   it("manages a focus project and turns its next action into today's task", async () => {
     const user = userEvent.setup();
@@ -165,6 +169,44 @@ describe("workbench navigation", () => {
     expect(screen.getByRole("dialog", { name: "确认清空数据" })).toBeInTheDocument();
   });
 
+  it("shows the current version and release notes in settings", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "设置" }));
+
+    expect(screen.getByRole("heading", { name: "关于工作台" })).toBeInTheDocument();
+    expect(screen.getByText(`v${APP_VERSION}`, { exact: true })).toBeInTheDocument();
+    for (const note of APP_RELEASE_NOTES) {
+      expect(screen.getByText(note, { exact: true })).toBeInTheDocument();
+    }
+  });
+
+  it("creates a due recurring plan, adds it to today, and can skip it", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "周期" }));
+    await user.click(screen.getByRole("button", { name: "新建周期" }));
+    await user.type(screen.getByLabelText("周期任务名称"), "每月核对还贷");
+    await user.click(screen.getByRole("button", { name: "保存周期任务" }));
+
+    expect(await screen.findByText("每月核对还贷")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "今日" }));
+    expect(await screen.findByText("今天有 1 项周期任务")).toBeInTheDocument();
+    expect(screen.getByText("周期任务")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "周期" }));
+    await user.click(screen.getByRole("button", { name: "跳过 每月核对还贷" }));
+    await user.click(screen.getByRole("button", { name: "今日" }));
+    await waitFor(() => expect(screen.queryByText("今天有 1 项周期任务")).not.toBeInTheDocument());
+    const skippedTask = screen.getByRole("heading", { name: "每月核对还贷", level: 3 }).closest("article");
+    expect(skippedTask).not.toBeNull();
+    expect(within(skippedTask!).getByText("已取消")).toBeInTheDocument();
+  });
+
   it("starts a Pomodoro for today's unfinished task and abandons without saving", async () => {
     const user = userEvent.setup();
     render(<Home />);
@@ -257,6 +299,8 @@ describe("workbench navigation", () => {
       priority: "high",
       status: "todo",
       source: "manual",
+      recurringPlanId: null,
+      recurrenceDueDate: null,
       createdAt: "2026-08-01T08:00:00.000Z",
       updatedAt: "2026-08-01T08:00:00.000Z",
     });

@@ -29,13 +29,15 @@ const task = (overrides: Partial<WorkspaceTask>): WorkspaceTask => ({
   priority: "medium",
   status: "todo",
   source: "manual",
+  recurringPlanId: null,
+  recurrenceDueDate: null,
   createdAt: now,
   updatedAt: now,
   ...overrides,
 });
 
 const workspace: Workspace = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   profile: {
     id: "local-user",
     displayName: "金龙",
@@ -128,6 +130,8 @@ const workspace: Workspace = {
     { id: "focus-session-three", taskId: "one", taskTitle: "完成方案", focusDate: "2026-07-28", plannedMinutes: 15, completedAt: now, createdAt: now },
     { id: "focus-session-four", taskId: "two", taskTitle: "复核数据", focusDate: "2026-07-27", plannedMinutes: 45, completedAt: now, createdAt: now },
   ],
+  recurringPlans: [],
+  recurringOccurrences: [],
 };
 
 describe("date helpers", () => {
