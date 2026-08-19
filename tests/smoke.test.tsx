@@ -12,5 +12,7 @@ describe("personal workbench", () => {
     const brandMark = screen.getByRole("img", { name: "龍字标识" });
     expect(brandMark.tagName).toBe("IMG");
     expect(brandMark.getAttribute("src")).toContain("longxu-dragon");
+    expect(brandMark).toHaveAttribute("width", "72");
+    expect(brandMark).toHaveAttribute("height", "72");
   });
 });
