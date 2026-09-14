@@ -18,6 +18,8 @@ import type {
   FocusSession,
   LearningEntry,
   LearningEntryInput,
+  ThoughtEntry,
+  ThoughtEntryInput,
   Profile,
   RecurringPlanInput,
   SaveStatus,
@@ -53,6 +55,9 @@ interface WorkspaceContextValue {
   createLearningEntry: (input: LearningEntryInput) => Promise<void>;
   updateLearningEntry: (id: string, patch: LearningEntryInput) => Promise<void>;
   deleteLearningEntry: (id: string) => Promise<void>;
+  createThoughtEntry: (input: ThoughtEntryInput) => Promise<void>;
+  updateThoughtEntry: (id: string, patch: ThoughtEntryInput) => Promise<void>;
+  deleteThoughtEntry: (id: string) => Promise<void>;
   upsertReview: (input: DailyReviewInput) => Promise<void>;
   createFocusSession: (input: Omit<FocusSession, "createdAt">) => Promise<void>;
   updateProfile: (patch: Pick<Profile, "displayName" | "timezone">) => Promise<void>;
@@ -69,7 +74,7 @@ interface WorkspaceContextValue {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 function hasLocalData(workspace: Workspace) {
-  return workspace.focusProjects.length > 0 || workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.dailyReviews.length > 0 || workspace.focusSessions.length > 0 || workspace.recurringPlans.length > 0 || workspace.recurringOccurrences.length > 0;
+  return workspace.focusProjects.length > 0 || workspace.tasks.length > 0 || workspace.workEntries.length > 0 || workspace.learningEntries.length > 0 || workspace.thoughtEntries.length > 0 || workspace.dailyReviews.length > 0 || workspace.focusSessions.length > 0 || workspace.recurringPlans.length > 0 || workspace.recurringOccurrences.length > 0;
 }
 
 function MigrationDialog({ onUpload, onStartFresh }: { onUpload: () => void; onStartFresh: () => void }) {
@@ -393,6 +398,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     await replaceWorkspace({ ...workspace, learningEntries: workspace.learningEntries.filter((entry) => entry.id !== id) });
   }
 
+  async function createThoughtEntry(input: ThoughtEntryInput) {
+    const current = workspaceRef.current;
+    if (!current) return;
+    const now = new Date().toISOString();
+    const entry: ThoughtEntry = { id: createId(), createdAt: now, updatedAt: now, ...input };
+    await replaceWorkspace({ ...current, thoughtEntries: [entry, ...current.thoughtEntries] });
+  }
+
+  async function updateThoughtEntry(id: string, patch: ThoughtEntryInput) {
+    if (!workspace) return;
+    const updatedAt = new Date().toISOString();
+    await replaceWorkspace({ ...workspace, thoughtEntries: workspace.thoughtEntries.map((entry) => entry.id === id ? { ...entry, ...patch, updatedAt } : entry) });
+  }
+
+  async function deleteThoughtEntry(id: string) {
+    if (!workspace) return;
+    await replaceWorkspace({ ...workspace, thoughtEntries: workspace.thoughtEntries.filter((entry) => entry.id !== id) });
+  }
+
   async function upsertReview(input: DailyReviewInput) {
     if (!workspace) return;
     const now = new Date().toISOString();
@@ -447,7 +471,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createFocusProject, updateFocusProject, deleteFocusProject, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, upsertReview, createFocusSession, updateProfile, resetWorkspace, createRecurringPlan, updateRecurringPlan, pauseRecurringPlan, resumeRecurringPlan, terminateRecurringPlan, skipRecurringPlanOccurrence, reconcileRecurringNow }}>
+    <WorkspaceContext.Provider value={{ workspace, saveStatus, error, syncMode, migrationPending, replaceWorkspace, migrateLocalData, startFreshCloudWorkspace, createFocusProject, updateFocusProject, deleteFocusProject, createTask, updateTask, deleteTask, rollTaskToTomorrow, createWorkEntry, updateWorkEntry, deleteWorkEntry, createLearningEntry, updateLearningEntry, deleteLearningEntry, createThoughtEntry, updateThoughtEntry, deleteThoughtEntry, upsertReview, createFocusSession, updateProfile, resetWorkspace, createRecurringPlan, updateRecurringPlan, pauseRecurringPlan, resumeRecurringPlan, terminateRecurringPlan, skipRecurringPlanOccurrence, reconcileRecurringNow }}>
       {children}
       {migrationPending ? <MigrationDialog onUpload={() => void migrateLocalData()} onStartFresh={() => void startFreshCloudWorkspace()} /> : null}
     </WorkspaceContext.Provider>

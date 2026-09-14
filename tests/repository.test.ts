@@ -117,6 +117,7 @@ describe("LocalWorkspaceRepository", () => {
     }]);
     expect(workspace.workEntries).toEqual(seeded.workEntries);
     expect(workspace.learningEntries).toEqual(seeded.learningEntries);
+    expect(workspace.thoughtEntries).toEqual([]);
     expect(workspace.dailyReviews).toEqual(seeded.dailyReviews);
   });
 

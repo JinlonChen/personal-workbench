@@ -65,6 +65,13 @@ export function exportMarkdown(workspace: Workspace): string {
       entry.nextAction ? `下一步：${entry.nextAction}` : "",
       "",
     ]),
+    "## 思考与灵感",
+    ...workspace.thoughtEntries.flatMap((entry) => [
+      `### ${entry.entryDate} · ${entry.title}`,
+      entry.content,
+      entry.tags.length ? `标签：${entry.tags.join("、")}` : "",
+      "",
+    ]),
     "## 每日复盘",
     ...workspace.dailyReviews.flatMap((review) => [
       `### ${review.reviewDate}`,

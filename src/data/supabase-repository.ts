@@ -73,6 +73,17 @@ export type LearningEntryRow = {
   updated_at: string;
 };
 
+export type ThoughtEntryRow = {
+  id: string;
+  user_id: string;
+  entry_date: string;
+  title: string;
+  content: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+};
+
 export type DailyReviewRow = {
   id: string;
   user_id: string;
@@ -119,6 +130,7 @@ export type SupabaseRows = {
   tasks: TaskRow[];
   workEntries: WorkEntryRow[];
   learningEntries: LearningEntryRow[];
+  thoughtEntries: ThoughtEntryRow[];
   dailyReviews: DailyReviewRow[];
   focusSessions: FocusSessionRow[];
   recurringPlans: RecurringPlanRow[];
@@ -192,6 +204,16 @@ export function workspaceToRows(workspace: Workspace, userId: string): SupabaseR
       source_url: entry.sourceUrl,
       key_points: entry.keyPoints,
       next_action: entry.nextAction,
+      tags: entry.tags,
+      created_at: entry.createdAt,
+      updated_at: entry.updatedAt,
+    })),
+    thoughtEntries: workspace.thoughtEntries.map((entry) => ({
+      id: entry.id,
+      user_id: userId,
+      entry_date: entry.entryDate,
+      title: entry.title,
+      content: entry.content,
       tags: entry.tags,
       created_at: entry.createdAt,
       updated_at: entry.updatedAt,
@@ -300,6 +322,15 @@ export function rowsToWorkspace(rows: SupabaseRows): Workspace {
       createdAt: entry.created_at,
       updatedAt: entry.updated_at,
     })),
+    thoughtEntries: (rows.thoughtEntries ?? []).map((entry) => ({
+      id: entry.id,
+      entryDate: entry.entry_date,
+      title: entry.title,
+      content: entry.content,
+      tags: entry.tags ?? [],
+      createdAt: entry.created_at,
+      updatedAt: entry.updated_at,
+    })),
     dailyReviews: rows.dailyReviews.map((review) => ({
       id: review.id,
       reviewDate: review.review_date,
@@ -338,7 +369,7 @@ export function rowsToWorkspace(rows: SupabaseRows): Workspace {
   };
 }
 
-type TableName = "focus_projects" | "tasks" | "work_entries" | "learning_entries" | "daily_reviews" | "focus_sessions" | "recurring_plans" | "recurring_occurrences";
+type TableName = "focus_projects" | "tasks" | "work_entries" | "learning_entries" | "thought_entries" | "daily_reviews" | "focus_sessions" | "recurring_plans" | "recurring_occurrences";
 
 class CloudLoadError extends Error {
   constructor(message: string, readonly status?: number) {
@@ -364,19 +395,20 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
   }
 
   private async loadOnce(): Promise<Workspace> {
-    const [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult, focusSessionsResult, recurringPlansResult, recurringOccurrencesResult] = await Promise.all([
+    const [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, thoughtEntriesResult, reviewsResult, focusSessionsResult, recurringPlansResult, recurringOccurrencesResult] = await Promise.all([
       this.client.from("profiles").select("id, display_name, timezone, created_at, updated_at").eq("id", this.userId).maybeSingle(),
       this.client.from("focus_projects").select("id, user_id, name, platform_url, owner, tier, status, current_goal, risk, next_action, latest_conclusion, next_review_date, created_at, updated_at").eq("user_id", this.userId).order("next_review_date", { ascending: true }),
       this.client.from("tasks").select("id, user_id, title, description, task_date, placement, backlog_kind, original_task_date, priority, status, source, recurring_plan_id, recurrence_due_date, created_at, updated_at").eq("user_id", this.userId).order("task_date", { ascending: false }),
       this.client.from("work_entries").select("id, user_id, entry_date, title, content, result, task_id, tags, created_at, updated_at").eq("user_id", this.userId).order("entry_date", { ascending: false }),
       this.client.from("learning_entries").select("id, user_id, entry_date, title, content, source_url, key_points, next_action, tags, created_at, updated_at").eq("user_id", this.userId).order("entry_date", { ascending: false }),
+      this.client.from("thought_entries").select("id, user_id, entry_date, title, content, tags, created_at, updated_at").eq("user_id", this.userId).order("entry_date", { ascending: false }),
       this.client.from("daily_reviews").select("id, user_id, review_date, completed_summary, main_gain, blockers, improvement, tomorrow_focus, mood, energy, notes, created_at, updated_at").eq("user_id", this.userId).order("review_date", { ascending: false }),
       this.client.from("focus_sessions").select("id, user_id, task_id, task_title, focus_date, planned_minutes, completed_at, created_at").eq("user_id", this.userId).order("completed_at", { ascending: false }),
       this.client.from("recurring_plans").select("id, user_id, title, description, category, start_date, interval, unit, mode, missed_policy, priority, in_app_reminder, browser_notification, end_date, status, completion_anchor_date, next_due_date, created_at, updated_at").eq("user_id", this.userId).order("next_due_date", { ascending: true }),
       this.client.from("recurring_occurrences").select("id, user_id, recurring_plan_id, due_date, task_id, status, resolved_at, created_at, updated_at").eq("user_id", this.userId).order("due_date", { ascending: false }),
     ]);
 
-    const failedResult = [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, reviewsResult, focusSessionsResult, recurringPlansResult, recurringOccurrencesResult]
+    const failedResult = [profileResult, focusProjectsResult, tasksResult, workEntriesResult, learningEntriesResult, thoughtEntriesResult, reviewsResult, focusSessionsResult, recurringPlansResult, recurringOccurrencesResult]
       .find((result) => result.error);
     if (failedResult?.error) {
       throw new CloudLoadError(
@@ -399,6 +431,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       tasks: (tasksResult.data ?? []) as TaskRow[],
       workEntries: (workEntriesResult.data ?? []) as WorkEntryRow[],
       learningEntries: (learningEntriesResult.data ?? []) as LearningEntryRow[],
+      thoughtEntries: (thoughtEntriesResult.data ?? []) as ThoughtEntryRow[],
       dailyReviews: (reviewsResult.data ?? []) as DailyReviewRow[],
       focusSessions: (focusSessionsResult.data ?? []) as FocusSessionRow[],
       recurringPlans: (recurringPlansResult.data ?? []) as RecurringPlanRow[],
@@ -425,6 +458,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       await this.syncTable("recurring_occurrences", rows.recurringOccurrences);
       await this.syncTable("work_entries", rows.workEntries);
       await this.syncTable("learning_entries", rows.learningEntries);
+      await this.syncTable("thought_entries", rows.thoughtEntries);
       await this.syncTable("daily_reviews", rows.dailyReviews);
       await this.syncTable("focus_sessions", rows.focusSessions);
     } catch (reason) {
@@ -438,6 +472,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       await this.deleteAll("daily_reviews");
       await this.deleteAll("work_entries");
       await this.deleteAll("learning_entries");
+      await this.deleteAll("thought_entries");
       await this.deleteAll("tasks");
       await this.deleteAll("focus_projects");
       await this.deleteAll("focus_sessions");

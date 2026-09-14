@@ -56,6 +56,21 @@ test("主要导航可以打开关注、任务、周期、记录、复盘和设�
   }
 });
 
+test("记录页按近三个月分成三列并支持思考与灵感", async ({ page }) => {
+  const primaryNavigation = page.getByRole("navigation", { name: "主要导航" });
+  await primaryNavigation.getByRole("button", { name: "记录", exact: true }).click();
+  await page.getByRole("button", { name: "思考与灵感", exact: true }).click();
+  await page.getByRole("button", { name: "新建记录", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "新建思考与灵感" });
+  await dialog.getByLabel("思考标题", { exact: true }).fill("端到端灵感");
+  await dialog.getByLabel("思考内容", { exact: true }).fill("验证三个月列表");
+  await dialog.getByRole("button", { name: "保存思考与灵感", exact: true }).click();
+
+  await expect(page.getByText("端到端灵感", { exact: true })).toBeVisible();
+  await expect(page.locator(".record-month-column")).toHaveCount(3);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+});
+
 test("周期任务到期后自动进入今日任务", async ({ page }) => {
   const primaryNavigation = page.getByRole("navigation", { name: "主要导航" });
   await primaryNavigation.getByRole("button", { name: "周期", exact: true }).click();

@@ -80,6 +80,16 @@ export interface LearningEntry {
   updatedAt: string;
 }
 
+export interface ThoughtEntry {
+  id: string;
+  entryDate: string;
+  title: string;
+  content: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DailyReview {
   id: string;
   reviewDate: string;
@@ -144,6 +154,7 @@ export interface Workspace {
   tasks: WorkspaceTask[];
   workEntries: WorkEntry[];
   learningEntries: LearningEntry[];
+  thoughtEntries: ThoughtEntry[];
   dailyReviews: DailyReview[];
   focusSessions: FocusSession[];
   recurringPlans: RecurringPlan[];
@@ -159,6 +170,7 @@ export type LearningEntryInput = Pick<
   LearningEntry,
   "entryDate" | "title" | "content" | "sourceUrl" | "keyPoints" | "nextAction" | "tags"
 >;
+export type ThoughtEntryInput = Pick<ThoughtEntry, "entryDate" | "title" | "content" | "tags">;
 export type DailyReviewInput = Omit<DailyReview, "id" | "createdAt" | "updatedAt">;
 
 export interface RecordFilters {

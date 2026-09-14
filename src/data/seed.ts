@@ -66,6 +66,7 @@ export function createSeedWorkspace(date = todayKey()): Workspace {
     ],
     workEntries: [],
     learningEntries: [],
+    thoughtEntries: [],
     dailyReviews: [],
     focusSessions: [],
     recurringPlans: [],

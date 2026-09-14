@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import Home from "@/app/page";
 import { STORAGE_KEY } from "@/data/local-repository";
 import { createSeedWorkspace } from "@/data/seed";
-import { todayKey } from "@/domain/date";
+import { nextDate, todayKey } from "@/domain/date";
 import { APP_RELEASE_NOTES, APP_VERSION } from "@/app/version";
 import { savePomodoro, startPomodoro } from "@/features/pomodoro-state";
 
@@ -139,6 +139,22 @@ describe("workbench navigation", () => {
     await user.type(screen.getByLabelText("搜索记录"), "RLS");
     expect(screen.getByText("理解 RLS 策略")).toBeInTheDocument();
     expect(screen.queryByText("完成登录流程")).not.toBeInTheDocument();
+  });
+
+  it("creates a thought and inspiration record", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "记录" }));
+    await user.click(screen.getByRole("button", { name: "思考与灵感" }));
+    await user.click(screen.getByRole("button", { name: "新建记录" }));
+    await user.type(screen.getByLabelText("思考标题"), "新的产品想法");
+    await user.type(screen.getByLabelText("思考内容"), "把零散想法先留下来");
+    await user.click(screen.getByRole("button", { name: "保存思考与灵感" }));
+
+    expect(await screen.findByText("新的产品想法")).toBeInTheDocument();
+    expect(screen.getByText("思考与灵感")).toBeInTheDocument();
   });
 
   it("saves one review per date and shows its summary", async () => {
@@ -326,6 +342,7 @@ describe("workbench navigation", () => {
 
   it("creates an unscheduled backlog task and schedules it into a date", async () => {
     const user = userEvent.setup();
+    const scheduledDate = nextDate(todayKey());
     render(<Home />);
 
     await screen.findByRole("heading", { name: "今日工作台" });
@@ -339,12 +356,12 @@ describe("workbench navigation", () => {
     expect(await screen.findByText("整理下季度培训素材")).toBeInTheDocument();
     expect(screen.getByText("待排期")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "安排日期 整理下季度培训素材" }));
-    fireEvent.change(screen.getByLabelText("安排到日期"), { target: { value: "2026-08-20" } });
+    fireEvent.change(screen.getByLabelText("安排到日期"), { target: { value: scheduledDate } });
     await user.click(screen.getByRole("button", { name: "确认安排" }));
 
-    expect(screen.queryByText("整理下季度培训素材")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("整理下季度培训素材")).not.toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "日期任务" }));
-    fireEvent.change(screen.getByLabelText("日期"), { target: { value: "2026-08-20" } });
+    fireEvent.change(screen.getByLabelText("日期"), { target: { value: scheduledDate } });
     expect(await screen.findByText("整理下季度培训素材")).toBeInTheDocument();
   });
 });

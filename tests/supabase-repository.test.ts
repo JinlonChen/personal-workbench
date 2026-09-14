@@ -51,6 +51,7 @@ describe("Supabase workspace mapping", () => {
     });
     expect(rows.workEntries).toEqual([]);
     expect(rows.learningEntries).toEqual([]);
+    expect(rows.thoughtEntries).toEqual([]);
     expect(rows.dailyReviews).toEqual([]);
     expect(rows.focusSessions).toEqual([]);
   });
@@ -155,7 +156,7 @@ describe("Supabase workspace mapping", () => {
     const workspace = await new SupabaseWorkspaceRepository(client, "user-1").load();
 
     expect(refreshSession).toHaveBeenCalledTimes(1);
-    expect(from).toHaveBeenCalledTimes(18);
+    expect(from).toHaveBeenCalledTimes(20);
     expect(workspace.profile.id).toBe("user-1");
   });
 

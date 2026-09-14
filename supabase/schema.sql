@@ -70,6 +70,17 @@ create table public.learning_entries (
   updated_at timestamptz not null default now()
 );
 
+create table public.thought_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  entry_date date not null,
+  title text not null,
+  content text not null default '',
+  tags text[] not null default '{}',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table public.daily_reviews (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -171,6 +182,10 @@ create trigger learning_entries_set_updated_at
 before update on public.learning_entries
 for each row execute function public.set_updated_at();
 
+create trigger thought_entries_set_updated_at
+before update on public.thought_entries
+for each row execute function public.set_updated_at();
+
 create trigger daily_reviews_set_updated_at
 before update on public.daily_reviews
 for each row execute function public.set_updated_at();
@@ -192,6 +207,7 @@ create index tasks_user_placement_date_idx on public.tasks (user_id, placement, 
 create index focus_projects_user_date_idx on public.focus_projects (user_id, next_review_date);
 create index work_entries_user_date_idx on public.work_entries (user_id, entry_date);
 create index learning_entries_user_date_idx on public.learning_entries (user_id, entry_date);
+create index thought_entries_user_date_idx on public.thought_entries (user_id, entry_date);
 create index daily_reviews_user_date_idx on public.daily_reviews (user_id, review_date);
 create index focus_sessions_user_date_idx on public.focus_sessions (user_id, focus_date);
 create index focus_sessions_user_task_idx on public.focus_sessions (user_id, task_id);
@@ -210,14 +226,20 @@ create index learning_entries_search_idx on public.learning_entries using gin (t
     'simple',
     coalesce(title, '') || ' ' || coalesce(content, '') || ' ' || coalesce(key_points, '')
 ));
+create index thought_entries_search_idx on public.thought_entries using gin (to_tsvector(
+    'simple',
+    coalesce(title, '') || ' ' || coalesce(content, '')
+));
 create index work_entries_tags_idx on public.work_entries using gin (tags);
 create index learning_entries_tags_idx on public.learning_entries using gin (tags);
+create index thought_entries_tags_idx on public.thought_entries using gin (tags);
 
 alter table public.profiles enable row level security;
 alter table public.focus_projects enable row level security;
 alter table public.tasks enable row level security;
 alter table public.work_entries enable row level security;
 alter table public.learning_entries enable row level security;
+alter table public.thought_entries enable row level security;
 alter table public.daily_reviews enable row level security;
 alter table public.focus_sessions enable row level security;
 alter table public.recurring_plans enable row level security;
@@ -266,6 +288,15 @@ for insert with check (auth.uid() = user_id);
 create policy learning_entries_update_own on public.learning_entries
 for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy learning_entries_delete_own on public.learning_entries
+for delete using (auth.uid() = user_id);
+
+create policy thought_entries_select_own on public.thought_entries
+for select using (auth.uid() = user_id);
+create policy thought_entries_insert_own on public.thought_entries
+for insert with check (auth.uid() = user_id);
+create policy thought_entries_update_own on public.thought_entries
+for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy thought_entries_delete_own on public.thought_entries
 for delete using (auth.uid() = user_id);
 
 create policy daily_reviews_select_own on public.daily_reviews

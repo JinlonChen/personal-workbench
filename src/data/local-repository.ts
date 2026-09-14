@@ -41,6 +41,7 @@ function normalizeWorkspace(value: LegacyWorkspace): Workspace {
     tasks: normalizeTasks(value.tasks),
     workEntries: Array.isArray(value.workEntries) ? value.workEntries : [],
     learningEntries: Array.isArray(value.learningEntries) ? value.learningEntries : [],
+    thoughtEntries: Array.isArray(value.thoughtEntries) ? value.thoughtEntries : [],
     dailyReviews: Array.isArray(value.dailyReviews) ? value.dailyReviews : [],
     focusSessions: Array.isArray(value.focusSessions) ? value.focusSessions : [],
     recurringPlans: Array.isArray(value.recurringPlans) ? value.recurringPlans : [],

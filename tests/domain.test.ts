@@ -94,6 +94,7 @@ const workspace: Workspace = {
       updatedAt: now,
     },
   ],
+  thoughtEntries: [],
   dailyReviews: [
     {
       id: "review-one",

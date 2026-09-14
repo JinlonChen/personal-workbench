@@ -7,8 +7,8 @@ const schemaPath = path.resolve(process.cwd(), "supabase/schema.sql");
 const schemaExists = existsSync(schemaPath);
 const schemaSource = schemaExists ? readFileSync(schemaPath, "utf8") : "";
 
-const tables = ["profiles", "focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews", "focus_sessions", "recurring_plans", "recurring_occurrences"] as const;
-const businessTables = ["focus_projects", "tasks", "work_entries", "learning_entries", "daily_reviews", "focus_sessions", "recurring_plans", "recurring_occurrences"] as const;
+const tables = ["profiles", "focus_projects", "tasks", "work_entries", "learning_entries", "thought_entries", "daily_reviews", "focus_sessions", "recurring_plans", "recurring_occurrences"] as const;
+const businessTables = ["focus_projects", "tasks", "work_entries", "learning_entries", "thought_entries", "daily_reviews", "focus_sessions", "recurring_plans", "recurring_occurrences"] as const;
 
 function normalizeSql(candidate: string) {
   return candidate.toLowerCase().replace(/\s+/g, " ").trim();
@@ -119,6 +119,7 @@ function assertDateIndexes(candidate: string) {
     tasks: "task_date",
     work_entries: "entry_date",
     learning_entries: "entry_date",
+    thought_entries: "entry_date",
     daily_reviews: "review_date",
     focus_sessions: "focus_date",
     recurring_plans: "next_due_date",
@@ -232,6 +233,7 @@ function assertSearchIndexes(candidate: string) {
     tasks: ["title", "description"],
     work_entries: ["title", "content", "result"],
     learning_entries: ["title", "content", "key_points"],
+    thought_entries: ["title", "content"],
   };
 
   for (const [table, fields] of Object.entries(expectedFields)) {
