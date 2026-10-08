@@ -1,7 +1,7 @@
-export const APP_VERSION = "0.3.2";
-export const APP_RELEASE_DATE = "2026-08-17";
+export const APP_VERSION = "0.3.3";
+export const APP_RELEASE_DATE = "2026-10-08";
 export const APP_RELEASE_NOTES = [
-  "修复 DeepSeek 返回单个任务草稿时出现 AI_INVALID_RESPONSE 的问题",
-  "兼容单操作草稿后仍执行原有字段、日期和操作类型校验",
-  "AI 响应校验日志只记录字段路径，不记录任务正文",
+  "新增每周运动目标和每周阅读目标快捷模板，继续复用原有周期任务能力",
+  "复盘提示升级为管理导向，记录管理收获、下一次检查点和改进动作",
+  "保留原有周期任务、自动生成、提醒、暂停、跳过和云端同步逻辑",
 ] as const;
