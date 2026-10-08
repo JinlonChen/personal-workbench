@@ -223,6 +223,35 @@ describe("workbench navigation", () => {
     expect(within(skippedTask!).getByText("已取消")).toBeInTheDocument();
   });
 
+  it("offers weekly movement and reading routine templates", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "周期" }));
+    await user.click(screen.getByRole("button", { name: "每周运动目标" }));
+    expect(screen.getByRole("dialog", { name: "新建周期任务" })).toBeInTheDocument();
+    expect(screen.getByLabelText("周期任务名称")).toHaveValue("本周运动4次");
+    await user.click(screen.getByRole("button", { name: "保存周期任务" }));
+    expect(await screen.findByText("本周运动4次")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "每周阅读目标" }));
+    expect(screen.getByLabelText("周期任务名称")).toHaveValue("本周阅读4次");
+    await user.click(screen.getByRole("button", { name: "保存周期任务" }));
+    expect(await screen.findByText("本周阅读4次")).toBeInTheDocument();
+  });
+
+  it("uses management language in the daily review prompts", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    await screen.findByRole("heading", { name: "今日工作台" });
+    await user.click(screen.getByRole("button", { name: "复盘" }));
+    expect(screen.getByText("今天的管理收获")).toBeInTheDocument();
+    expect(screen.getByText("下一次检查点 / 改进动作")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("负责人、下一步、检查时间或需要升级的事项")).toBeInTheDocument();
+  });
+
   it("starts a Pomodoro for today's unfinished task and abandons without saving", async () => {
     const user = userEvent.setup();
     render(<Home />);

@@ -67,10 +67,10 @@ export function ReviewsView() {
         <form className="review-form" onSubmit={submit}>
           <div className="review-form-header"><div><h2>{date === today ? "今晚，整理一下今天" : formatDate(date)}</h2><p>不用写得完整，真实就好。</p></div><input aria-label="复盘日期" type="date" value={date} max={today} onChange={(event) => setDate(event.target.value)} /></div>
           <label className="field"><span>今天完成了什么</span><textarea rows={3} value={form.completedSummary} onChange={(event) => field("completedSummary", event.target.value)} placeholder="完成的任务、推进的事情或做出的决定" /></label>
-          <label className="field"><span>今天最重要的收获</span><textarea rows={3} value={form.mainGain} onChange={(event) => field("mainGain", event.target.value)} placeholder="一条认识、经验或新的理解" /></label>
+          <label className="field"><span>今天的管理收获</span><textarea aria-label="今天最重要的收获" rows={3} value={form.mainGain} onChange={(event) => field("mainGain", event.target.value)} placeholder="今天识别出的重点、风险、责任边界或推进方法" /></label>
           <div className="form-grid">
             <label className="field"><span>今天遇到的阻碍</span><textarea rows={3} value={form.blockers} onChange={(event) => field("blockers", event.target.value)} /></label>
-            <label className="field"><span>哪件事可以做得更好</span><textarea rows={3} value={form.improvement} onChange={(event) => field("improvement", event.target.value)} /></label>
+            <label className="field"><span>下一次检查点 / 改进动作</span><textarea rows={3} value={form.improvement} onChange={(event) => field("improvement", event.target.value)} placeholder="负责人、下一步、检查时间或需要升级的事项" /></label>
           </div>
           <label className="field"><span>明天最重要的一件事</span><input value={form.tomorrowFocus} onChange={(event) => field("tomorrowFocus", event.target.value)} /></label>
           <div className="wellbeing-row">

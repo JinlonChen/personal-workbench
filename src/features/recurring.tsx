@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, CirclePause, CirclePlay, Pencil, Plus, RefreshCcw, SkipForward, Square } from "lucide-react";
+import { BookOpen, CalendarClock, CirclePause, CirclePlay, Dumbbell, Pencil, Plus, RefreshCcw, SkipForward, Square } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 
 import { ConfirmDialog, EmptyState, Modal, PageHeader, SaveIndicator } from "@/components/ui";
@@ -22,21 +22,23 @@ import { requestRecurringNotificationPermission } from "./recurring-notification
 const unitLabels: Record<RecurrenceUnit, string> = { day: "天", week: "周", month: "月", quarter: "季度", year: "年" };
 const statusLabels = { active: "进行中", paused: "已暂停", terminated: "已终止" } as const;
 
-function PlanForm({ plan, onClose }: { plan?: RecurringPlan; onClose: () => void }) {
+type PlanTemplate = Pick<RecurringPlanInput, "title" | "description" | "category" | "interval" | "unit" | "mode" | "missedPolicy" | "priority" | "inAppReminder" | "browserNotification" | "endDate">;
+
+function PlanForm({ plan, template, onClose }: { plan?: RecurringPlan; template?: PlanTemplate; onClose: () => void }) {
   const { createRecurringPlan, updateRecurringPlan, error } = useWorkspace();
   const today = todayKey();
-  const [title, setTitle] = useState(plan?.title ?? "");
-  const [description, setDescription] = useState(plan?.description ?? "");
-  const [category, setCategory] = useState<RecurringCategory>(plan?.category ?? "life");
+  const [title, setTitle] = useState(plan?.title ?? template?.title ?? "");
+  const [description, setDescription] = useState(plan?.description ?? template?.description ?? "");
+  const [category, setCategory] = useState<RecurringCategory>(plan?.category ?? template?.category ?? "life");
   const [startDate, setStartDate] = useState(plan?.startDate ?? today);
-  const [interval, setInterval] = useState(plan?.interval ?? 1);
-  const [unit, setUnit] = useState<RecurrenceUnit>(plan?.unit ?? "month");
-  const [mode, setMode] = useState<RecurrenceMode>(plan?.mode ?? "fixed");
-  const [missedPolicy, setMissedPolicy] = useState<MissedOccurrencePolicy>(plan?.missedPolicy ?? "latest_only");
-  const [priority, setPriority] = useState<TaskPriority>(plan?.priority ?? "medium");
-  const [inAppReminder, setInAppReminder] = useState(plan?.inAppReminder ?? true);
-  const [browserNotification, setBrowserNotification] = useState(plan?.browserNotification ?? false);
-  const [endDate, setEndDate] = useState(plan?.endDate ?? "");
+  const [interval, setInterval] = useState(plan?.interval ?? template?.interval ?? 1);
+  const [unit, setUnit] = useState<RecurrenceUnit>(plan?.unit ?? template?.unit ?? "month");
+  const [mode, setMode] = useState<RecurrenceMode>(plan?.mode ?? template?.mode ?? "fixed");
+  const [missedPolicy, setMissedPolicy] = useState<MissedOccurrencePolicy>(plan?.missedPolicy ?? template?.missedPolicy ?? "latest_only");
+  const [priority, setPriority] = useState<TaskPriority>(plan?.priority ?? template?.priority ?? "medium");
+  const [inAppReminder, setInAppReminder] = useState(plan?.inAppReminder ?? template?.inAppReminder ?? true);
+  const [browserNotification, setBrowserNotification] = useState(plan?.browserNotification ?? template?.browserNotification ?? false);
+  const [endDate, setEndDate] = useState(plan?.endDate ?? template?.endDate ?? "");
   const [validation, setValidation] = useState("");
 
   async function changeBrowserNotification(enabled: boolean) {
@@ -96,14 +98,25 @@ function PlanRow({ plan }: { plan: RecurringPlan }) {
 export function RecurringView() {
   const { workspace, saveStatus, syncMode } = useWorkspace();
   const [creating, setCreating] = useState(false);
+  const [template, setTemplate] = useState<PlanTemplate | undefined>();
   const [filter, setFilter] = useState<"active" | "paused" | "terminated" | "all">("active");
   const today = todayKey(workspace.profile.timezone);
   const summary = recurringSummary(workspace.recurringPlans, workspace.tasks, today);
   const plans = useMemo(() => workspace.recurringPlans.filter((plan) => filter === "all" || plan.status === filter).sort((a, b) => (a.nextDueDate ?? "9999").localeCompare(b.nextDueDate ?? "9999")), [filter, workspace.recurringPlans]);
-  return <section className="view-page recurring-page"><PageHeader eyebrow="规律与提醒" title="周期任务" description="把需要定期完成的事情交给工作台安排。" action={<button className="button primary" type="button" onClick={() => setCreating(true)}><Plus size={17} />新建周期</button>} />
+  function openTemplate(nextTemplate: PlanTemplate) {
+    setTemplate(nextTemplate);
+    setCreating(true);
+  }
+
+  function closeForm() {
+    setCreating(false);
+    setTemplate(undefined);
+  }
+
+  return <section className="view-page recurring-page"><PageHeader eyebrow="规律与提醒" title="周期任务" description="把需要定期完成的事情交给工作台安排。" action={<button className="button primary" type="button" onClick={() => { setTemplate(undefined); setCreating(true); }}><Plus size={17} />新建周期</button>} />
     <div className="recurring-summary"><div><strong>{summary.dueToday}</strong><span>今日到期</span></div><div><strong>{summary.nextSevenDays}</strong><span>未来 7 天</span></div><div><strong>{summary.overdue}</strong><span>已逾期</span></div><div><strong>{summary.paused}</strong><span>已暂停</span></div></div>
-    <div className="toolbar recurring-toolbar"><div className="segmented"><button className={filter === "active" ? "active" : ""} onClick={() => setFilter("active")} type="button">进行中</button><button className={filter === "paused" ? "active" : ""} onClick={() => setFilter("paused")} type="button">已暂停</button><button className={filter === "terminated" ? "active" : ""} onClick={() => setFilter("terminated")} type="button">已终止</button><button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} type="button">全部</button></div><div className="toolbar-spacer" /><SaveIndicator status={saveStatus} mode={syncMode} /></div>
+    <div className="toolbar recurring-toolbar"><div className="segmented"><button className={filter === "active" ? "active" : ""} onClick={() => setFilter("active")} type="button">进行中</button><button className={filter === "paused" ? "active" : ""} onClick={() => setFilter("paused")} type="button">已暂停</button><button className={filter === "terminated" ? "active" : ""} onClick={() => setFilter("terminated")} type="button">已终止</button><button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} type="button">全部</button></div><div className="routine-templates"><button className="button secondary compact-button" type="button" onClick={() => openTemplate({ title: "本周运动4次", description: "每周完成4次，每次至少15分钟。", category: "life", interval: 1, unit: "week", mode: "fixed", missedPolicy: "latest_only", priority: "medium", inAppReminder: true, browserNotification: false, endDate: null })}><Dumbbell size={15} />每周运动目标</button><button className="button secondary compact-button" type="button" onClick={() => openTemplate({ title: "本周阅读4次", description: "每周完成4次，每次至少阅读5页。", category: "life", interval: 1, unit: "week", mode: "fixed", missedPolicy: "latest_only", priority: "medium", inAppReminder: true, browserNotification: false, endDate: null })}><BookOpen size={15} />每周阅读目标</button></div><div className="toolbar-spacer" /><SaveIndicator status={saveStatus} mode={syncMode} /></div>
     {plans.length ? <div className="recurring-list">{plans.map((plan) => <PlanRow key={plan.id} plan={plan} />)}</div> : <EmptyState icon={<CalendarClock size={22} />} title="还没有周期任务" description="添加一件需要按固定规律完成的事。" />}
-    {creating ? <PlanForm onClose={() => setCreating(false)} /> : null}
+    {creating ? <PlanForm template={template} onClose={closeForm} /> : null}
   </section>;
 }
